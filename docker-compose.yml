@@ -1,0 +1,5 @@
+# SYNERA Docker Compose Configuration
+# Note: Full container orchestration services are configured in Part 9.
+version: "3.9"
+
+services: {}

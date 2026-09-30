@@ -1,0 +1,38 @@
+# Environments and dependencies
+.venv/
+env/
+venv/
+node_modules/
+dist/
+build/
+*.egg-info/
+
+# Artifacts and sensitive runtime files
+artifacts/
+*.pem
+*.key
+.env
+.env.local
+.env.*.local
+
+# Data layers (raw and interim are excluded; processed and reference can be selective)
+data/raw/
+data/interim/
+!data/MANIFEST.json
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS specific
+.DS_Store
+Thumbs.db

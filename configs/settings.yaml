@@ -1,0 +1,34 @@
+seeds:
+  global: 20260929
+
+alpha: 0.05
+fdr_method: "bh"
+min_abs_effect: 0.5  # log2 scale: multiplicative fold-change threshold
+
+bootstrap_reps: 2000
+cv_folds: 5
+max_findings_per_run: 50
+
+confidence_weights:
+  stat: 0.35
+  replication: 0.30
+  robustness: 0.20
+  trust: 0.15
+
+paths:
+  data_dir: "data"
+  raw_data_dir: "data/raw"
+  interim_data_dir: "data/interim"
+  processed_data_dir: "data/processed"
+  synthetic_data_dir: "data/synthetic"
+  reference_data_dir: "data/reference"
+  manifest_path: "data/MANIFEST.json"
+  artifacts_dir: "artifacts"
+  models_dir: "artifacts/models"
+  results_dir: "artifacts/results"
+  reports_dir: "artifacts/reports"
+  keys_dir: "artifacts/keys"
+
+ledger:
+  db: "artifacts/ledger.db"
+  key: "artifacts/keys/ledger_ed25519.pem"

@@ -1,0 +1,53 @@
+# SYNERA Dataset Registry
+# Schema:
+#   id: str
+#   track: "A" | "B" | "C"
+#   title: str
+#   source: str
+#   provenance: "REAL" | "SIMULATED"
+#   files: list[str]
+#   design: "factorial" | "continuous"
+#   stressors: list[str]
+#   outcome: str
+#   status: "REGISTERED" | "INGESTED" | "VALIDATED"
+
+datasets:
+  - id: "osdr_space_radiation_microgravity"
+    track: "A"
+    title: "Space Biology Testbed: Radiation x Microgravity Omics"
+    source: "NASA Open Science Data Repository (OSDR) / GeneLab"
+    provenance: "REAL"
+    files: []
+    design: "factorial"
+    stressors:
+      - "spaceflight_microgravity"
+      - "ionizing_radiation"
+    outcome: "transcriptomic_log2fc"
+    status: "REGISTERED"
+
+  - id: "benchmark_planted_interactions"
+    track: "B"
+    title: "Engine Benchmark: Planted Interaction Testbed"
+    source: "Synthetic Generator on Real Covariates"
+    provenance: "SIMULATED"
+    files: []
+    design: "continuous"
+    stressors:
+      - "stressor_alpha"
+      - "stressor_beta"
+    outcome: "interaction_response"
+    status: "REGISTERED"
+
+# - id: "climate_heat_pm25_ozone"
+#   track: "C"
+#   title: "Climate-Health: Heat x PM2.5 x Ozone Interaction"
+#   source: "Open-Meteo / EPA Ground Monitoring"
+#   provenance: "REAL"
+#   files: []
+#   design: "continuous"
+#   stressors:
+#     - "temperature_celsius"
+#     - "pm25_ug_m3"
+#     - "ozone_ppb"
+#   outcome: "health_risk_index"
+#   status: "REGISTERED"
