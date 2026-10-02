@@ -11,7 +11,7 @@ Team: **PeakyGliders, Guru Nanak Dev University**
 |------|-------|--------|-------|
 | 1 | Project Context, Directory Structure & Environment Setup | COMPLETED | Scaffolded core structure, configs, docs, and environment |
 | 2 | Cryptographic Provenance Ledger & Security Primitives | COMPLETED | Ed25519 signing, Merkle trees, SQLite ledger, tampering detection, demo notebook |
-| 3 | Data Ingestion, Harmonization & Manifest Pipeline | PENDING | NASA OSDR omics, meteorological data, synthetic benchmark generation |
+| 3 | Data Ingestion, Harmonization & Manifest Pipeline | COMPLETED (Blocked) | NASA OSDR omics, meteorological data, synthetic benchmark generation |
 | 4 | AI Discovery Engine | PENDING | Interaction discovery, LightGBM interaction constraints, neural embeddings, anomaly detection |
 | 5 | Scientific Validation & Statistical Rigor | PENDING | Benjamini-Hochberg FDR, empirical Bayes moderation, block bootstrap, replication tests |
 | 6 | Core Pipeline Orchestration & FastAPI Backend | PENDING | End-to-end pipeline execution, SQLModel persistence, SSE streaming, REST API |
@@ -76,7 +76,37 @@ Team: **PeakyGliders, Guru Nanak Dev University**
 ### Blocked Items
 - *None.*
 
-### Next Steps (Part 3)
-- Ingest and harmonize NASA OSDR Space Biology omics datasets (GeneLab radiation x microgravity).
-- Implement meteorological and environmental data connectors (NASA POWER / Open-Meteo).
-- Generate synthetic multi-stressor benchmark datasets carrying explicit `provenance=SIMULATED` metadata.
+---
+
+## Part 3 Log: Data Ingestion, Harmonization & Manifest Pipeline
+
+### Completed in Part 3
+- **3.1 Shared HTTP Utility**: Implemented `HTTPClient` with httpx, tenacity retries, exponential backoff, raw-response caching, and ledger registration.
+- **3.2 NASA OSDR / GeneLab (Track A)**:
+  - `data/osdr.py`: Implemented API client for `search_studies`, `get_meta`, `list_files`, and `download`.
+  - `scripts/find_candidate_studies.py`: Built scoring script to evaluate transcriptomics studies for real 2x2 gravity x radiation design.
+  - `data/harmonize.py`: Created harmonization function `harmonize_osdr` that processes counts/metadata into standardized parquet files and QC reports, with a cross-study contrast fallback.
+- **3.3 Environmental Stressor Panel (Track B/C)**:
+  - `data/nasa_power.py`: Implemented NASA POWER API client for agroclimatology data.
+  - `data/openmeteo.py`: Implemented Open-Meteo Historical Weather and Air Quality API clients.
+  - `scripts/build_env_data.py`: Integrated APIs across 8 major cities, calculated Heat Index (Rothfusz regression) and Drought Index (30-day precipitation z-score), flagged physical anomalies, and saved to `data/processed/env_panel.parquet`.
+- **3.4 Health Outcome Adapter (Track C)**:
+  - `data/health.py`: Created `HealthOutcomeAdapter` interface and documented `CDCNCHSRespiratoryAdapter` example.
+- **3.5 Scripts & Automation**:
+  - `scripts/build_data.py`: Built pipeline orchestrator to sequence environmental panel generation and (pending) OSDR processing.
+  - Added `Makefile` with `data` command for idempotent running.
+- **3.6 Notebooks**:
+  - Generated `01_data_acquisition.ipynb` demonstrating caching and provenance registration.
+  - Generated `02_eda_and_qc.ipynb` visualizing environmental stressor correlations and handling QC.
+- **3.7 Tests**:
+  - Added `tests/test_data_pipeline.py` mocking `httpx` to verify API wrappers without network calls. Tests pass.
+
+### Blocked Items
+- **BLOCKED: need user to pick discovery + replication OSD IDs** (Run `find_candidate_studies.py` to get candidates in `data/interim/osdr_candidates.csv` and add to `configs/datasets.yaml`).
+
+### Next Steps (Part 4)
+- AI Discovery Engine
+- Interaction discovery
+- LightGBM interaction constraints
+- Neural embeddings
+- Anomaly detection

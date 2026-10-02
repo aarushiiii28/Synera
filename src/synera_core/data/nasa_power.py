@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
+from synera_core.data.http_client import HTTPClient
 
 
 def fetch_power_point(
@@ -41,7 +41,6 @@ def fetch_power_point(
         "end": end_date,
         "format": "JSON",
     }
-    with httpx.Client(timeout=30.0) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
+    client = HTTPClient()
+    data, _, _ = client.get_json(url, params=params)
+    return data
