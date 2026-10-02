@@ -7,11 +7,10 @@ Handles downloading, parsing, and QC of spaceflight multi-omics studies
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any
-import pandas as pd
+from typing import Any
 
 
-def load_osdr_study(study_id: str, local_dir: Path | str) -> Dict[str, Any]:
+def load_osdr_study(study_id: str, local_dir: Path | str) -> dict[str, Any]:
     """Load and index OSDR study files and metadata from local repository directory.
 
     Args:

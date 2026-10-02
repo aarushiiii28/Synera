@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
 from synera_core.security.integrity import compute_file_sha256
 
 
 def verify_model_artifact(
     model_path: Path | str,
     expected_sha256: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Verify serialized model artifact against recorded cryptographic hash.
 
     Args:

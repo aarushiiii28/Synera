@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
-
 
 def evaluate_interaction_recovery(
-    discovered_pairs: List[Tuple[str, str]],
-    planted_pairs: List[Tuple[str, str]],
-) -> Dict[str, float]:
+    discovered_pairs: list[tuple[str, str]],
+    planted_pairs: list[tuple[str, str]],
+) -> dict[str, float]:
     """Calculate discovery precision, recall, and false discovery proportion.
 
     Args:
@@ -18,10 +16,10 @@ def evaluate_interaction_recovery(
     Returns:
         Dictionary of precision, recall, f1, and fdr scores.
     """
-    discovered_norm: Set[Tuple[str, str]] = {
+    discovered_norm: set[tuple[str, str]] = {
         tuple(sorted(pair)) for pair in discovered_pairs  # type: ignore[misc]
     }
-    planted_norm: Set[Tuple[str, str]] = {
+    planted_norm: set[tuple[str, str]] = {
         tuple(sorted(pair)) for pair in planted_pairs  # type: ignore[misc]
     }
 

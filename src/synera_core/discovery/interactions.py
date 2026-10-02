@@ -7,9 +7,6 @@ and sets of environmental stressors against response outcomes.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, Any, List
-import numpy as np
-import pandas as pd
 
 
 class InteractionType(str, Enum):

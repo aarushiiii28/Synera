@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Tuple
+from collections.abc import Callable
+
 import numpy as np
 
 
@@ -12,7 +13,7 @@ def bootstrap_ci(
     n_reps: int = 2000,
     ci_level: float = 0.95,
     seed: int = 20260929,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Calculate empirical percentile bootstrap confidence intervals.
 
     Args:

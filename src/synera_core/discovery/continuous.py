@@ -6,7 +6,6 @@ and 2D tensor-product splines.
 
 from __future__ import annotations
 
-from typing import Tuple
 import numpy as np
 
 
@@ -14,7 +13,7 @@ def fit_response_surface(
     x1: np.ndarray,
     x2: np.ndarray,
     y: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Fit a bivariate continuous response surface over stressors x1, x2.
 
     Args:

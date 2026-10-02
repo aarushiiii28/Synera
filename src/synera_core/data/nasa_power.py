@@ -5,7 +5,8 @@ Retrieves solar, meteorological, and radiation climatology datasets.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
+
 import httpx
 
 
@@ -14,9 +15,9 @@ def fetch_power_point(
     longitude: float,
     start_date: str,
     end_date: str,
-    parameters: List[str],
+    parameters: list[str],
     community: str = "AG",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Fetch point climatology or agroclimatology data from NASA POWER API.
 
     Args:

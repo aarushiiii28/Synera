@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
 
 
 def verify_stage_transitions(
-    recorded_stages: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    recorded_stages: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Verify that execution pipeline stages followed permissible sequential state transitions.
 
     Args:

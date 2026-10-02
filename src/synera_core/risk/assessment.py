@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
-
 
 def calculate_synergistic_risk_multiplier(
     marginal_risk_a: float,

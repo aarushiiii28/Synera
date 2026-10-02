@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -37,9 +38,9 @@ class DatasetEntry(BaseModel):
     title: str
     source: str
     provenance: ProvenanceType
-    files: List[str] = Field(default_factory=list)
+    files: list[str] = Field(default_factory=list)
     design: ExperimentalDesign
-    stressors: List[str]
+    stressors: list[str]
     outcome: str
     status: str = "REGISTERED"
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)

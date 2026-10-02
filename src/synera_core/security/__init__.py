@@ -13,13 +13,13 @@ from synera_core.security.poisoning import detect_poisoning_candidates
 from synera_core.security.tamper_sim import simulate_bit_flip
 
 __all__ = [
-    "compute_file_sha256",
-    "verify_file_integrity",
-    "IntegrityResult",
     "IntegrityGuard",
-    "guard_verified_status",
+    "IntegrityResult",
+    "compute_file_sha256",
     "detect_poisoning_candidates",
+    "guard_verified_status",
+    "simulate_bit_flip",
+    "verify_file_integrity",
     "verify_model_artifact",
     "verify_stage_transitions",
-    "simulate_bit_flip",
 ]

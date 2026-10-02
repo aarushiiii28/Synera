@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
 from synera_core.discovery.interactions import InteractionType
 
 

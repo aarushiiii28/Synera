@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any
 
 
 def evaluate_replication(
@@ -11,7 +11,7 @@ def evaluate_replication(
     primary_p: float,
     replication_p: float,
     alpha: float = 0.05,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Test concordance and directional consistency across independent datasets.
 
     Args:

@@ -1,7 +1,6 @@
 """Test configuration loading and repository root resolution."""
 
-from pathlib import Path
-from synera_core.config import get_settings, find_repo_root
+from synera_core.config import find_repo_root, get_settings
 
 
 def test_find_repo_root():

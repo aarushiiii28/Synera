@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
+
 from synera_core.config import Settings, get_settings
-from synera_core.pipeline.states import FindingState, PipelineStage
+from synera_core.pipeline.states import PipelineStage
 
 
 class PipelineOrchestrator:
@@ -12,10 +13,10 @@ class PipelineOrchestrator:
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
-        self.history: List[Dict[str, Any]] = []
+        self.history: list[dict[str, Any]] = []
         self.current_stage = PipelineStage.INITIALIZED
 
-    def record_stage(self, stage: PipelineStage, details: Dict[str, Any] | None = None) -> None:
+    def record_stage(self, stage: PipelineStage, details: dict[str, Any] | None = None) -> None:
         """Log a pipeline stage progression event."""
         self.current_stage = stage
         self.history.append({

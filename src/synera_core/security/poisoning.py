@@ -6,7 +6,8 @@ anomalous observations that skew interaction estimates.
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
+
 import numpy as np
 
 
@@ -14,7 +15,7 @@ def detect_poisoning_candidates(
     x_matrix: np.ndarray,
     y_vector: np.ndarray,
     residual_threshold: float = 3.5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Flag potential poisoned data points using leverage-residual diagnostics.
 
     Args:

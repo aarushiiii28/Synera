@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
+
 import httpx
 
 
@@ -11,8 +12,8 @@ def fetch_openmeteo_archive(
     longitude: float,
     start_date: str,
     end_date: str,
-    variables: List[str],
-) -> Dict[str, Any]:
+    variables: list[str],
+) -> dict[str, Any]:
     """Fetch historical weather or air quality metrics from Open-Meteo archive.
 
     Args:

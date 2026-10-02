@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Tuple
 import numpy as np
 
 
 def benjamini_hochberg(
     p_values: np.ndarray | list[float],
     alpha: float = 0.05,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Perform Benjamini-Hochberg False Discovery Rate (FDR) procedure.
 
     Args:

@@ -8,7 +8,8 @@ NOTE: All generated data carries provenance=SIMULATED.
 
 from __future__ import annotations
 
-from typing import Dict, Any, Tuple
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -17,7 +18,7 @@ def generate_benchmark_dataset(
     n_samples: int = 200,
     n_stressors: int = 5,
     seed: int = 20260929,
-) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Generate simulated dataset with planted ground-truth synergy and antagonism.
 
     Args:

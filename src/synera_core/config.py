@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
@@ -105,7 +105,7 @@ def get_settings(config_path: Path | str | None = None) -> Settings:
         if not yaml_file.is_absolute():
             yaml_file = (repo_root / yaml_file).resolve()
 
-    yaml_data: Dict[str, Any] = {}
+    yaml_data: dict[str, Any] = {}
     if yaml_file.exists():
         with open(yaml_file, "r", encoding="utf-8") as f:
             loaded = yaml.safe_load(f)

@@ -6,14 +6,15 @@ non-linear and high-order stressor synergies.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Any
+from typing import Any
+
 import numpy as np
 
 
 def rank_pairwise_interactions(
-    features: List[str],
+    features: list[str],
     interaction_matrix: np.ndarray,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Rank pairs of features by interaction strength.
 
     Args:
@@ -23,7 +24,7 @@ def rank_pairwise_interactions(
     Returns:
         List of ranked interaction pairs with scores.
     """
-    ranked: List[Dict[str, Any]] = []
+    ranked: list[dict[str, Any]] = []
     n = len(features)
     for i in range(n):
         for j in range(i + 1, n):

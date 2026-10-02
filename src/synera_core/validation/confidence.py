@@ -6,7 +6,6 @@ and cryptographic provenance trust into an aggregate indicator score in [0, 1].
 
 from __future__ import annotations
 
-from typing import Dict
 from synera_core.config import ConfidenceWeightsConfig
 
 
