@@ -84,7 +84,7 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
         X = df_or_expr.select_dtypes(include=[np.number]).fillna(df_or_expr.mean(numeric_only=True)).values
         
         # Isolation Forest
-        iso = IsolationForest(contamination=0.05, random_state=42)
+        iso = IsolationForest(contamination=0.01, random_state=42)
         iso_preds = iso.fit_predict(X)
         iso_scores = -iso.score_samples(X)
         
@@ -130,11 +130,26 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
         
         n_outliers = np.sum(iso_preds == -1)
         if n_outliers > 0:
-            report.add_check("outliers", "WARN", float(n_outliers), f"{n_outliers} sample-level outliers detected")
+            report.add_check("isolation_forest", "WARN", float(n_outliers), f"{n_outliers} sample-level outliers detected by IF")
         else:
-            report.add_check("outliers", "PASS", 0.0, "No significant sample outliers")
+            report.add_check("isolation_forest", "PASS", 0.0, "No significant sample outliers by IF")
+            
+        n_mcd_out = np.sum(mcd_scores > 5.0)
+        if n_mcd_out > 0:
+            report.add_check("mcd", "WARN", float(n_mcd_out), f"{n_mcd_out} outliers detected by MCD")
+        else:
+            report.add_check("mcd", "PASS", 0.0, "No outliers by MCD")
+            
+        n_ae_out = np.sum(rec_scores > 3.0)
+        if n_ae_out > 0:
+            report.add_check("autoencoder", "WARN", float(n_ae_out), f"{n_ae_out} outliers detected by AE")
+        else:
+            report.add_check("autoencoder", "PASS", 0.0, "No outliers by AE")
+            
     except Exception as e:
-        report.add_check("outliers", "WARN", 1.0, f"Outlier check failed: {str(e)}")
+        report.add_check("isolation_forest", "WARN", 1.0, f"Check failed: {str(e)}")
+        report.add_check("mcd", "WARN", 1.0, f"Check failed: {str(e)}")
+        report.add_check("autoencoder", "WARN", 1.0, f"Check failed: {str(e)}")
 
     # Check 4: Distribution drift
     if baseline is not None:
@@ -166,7 +181,7 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
                     y = meta[col].values
                     for i in range(len(y)):
                         neighbor_labels = y[indices[i]]
-                        if np.mean(neighbor_labels == y[i]) < 0.2: # strongly disagrees
+                        if np.mean(neighbor_labels == y[i]) <= 0.2: # strongly disagrees
                             flips += 1
                             report.suspicion_scores[i] += 5.0
             
@@ -178,7 +193,7 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
             pass
             
     # Check 6: Temporal sanity
-    date_cols = [c for c in df_or_expr.columns if 'date' in c.lower() or 'time' in c.lower()]
+    date_cols = [c for c in df_or_expr.columns if 'date' in str(c).lower() or 'time' in str(c).lower()]
     if date_cols:
         for dc in date_cols:
             try:

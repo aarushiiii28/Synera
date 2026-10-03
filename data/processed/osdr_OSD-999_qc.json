@@ -1,7 +1,7 @@
 {
   "shape": "21 samples x 5 genes",
   "gene_id_type": "ENSEMBL",
-  "value_range": "0.19 to 6.66",
+  "value_range": "1.52 to 6.64",
   "n_constant_genes": 0,
   "n_per_cell": {
     "(0, 0)": 6,
@@ -11,5 +11,8 @@
   },
   "missingness": 0.0,
   "evidence_level": "VALIDATED",
-  "pca_outliers": []
+  "pca_outliers": [],
+  "variant": "unknown",
+  "genes_kept": 5,
+  "genes_dropped": 0
 }

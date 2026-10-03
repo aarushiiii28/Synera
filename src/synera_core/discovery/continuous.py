@@ -88,7 +88,8 @@ def continuous_interaction(
         
     z_additive = m0.predict(grid_df).values.reshape(40, 40)
     z_full = m2.predict(grid_df).values.reshape(40, 40)
-    z_gap = z_full - z_additive
+    y_sd = data[y_col].std()
+    z_gap = (z_full - z_additive) / (y_sd + 1e-9)
     
     return {
         "p_bilinear": p_bilinear,
