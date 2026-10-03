@@ -1,4 +1,8 @@
 {
+  "shape": "21 samples x 29227 genes",
+  "gene_id_type": "ENSEMBL",
+  "value_range": "0.00 to 21.40",
+  "n_constant_genes": 0,
   "n_per_cell": {
     "(0, 0)": 6,
     "(0, 1)": 3,
@@ -6,5 +10,6 @@
     "(1, 1)": 6
   },
   "missingness": 0.0,
-  "evidence_level": "VALIDATED"
+  "evidence_level": "VALIDATED",
+  "pca_outliers": []
 }

@@ -38,29 +38,40 @@ def main():
     replication_id = datasets_cfg.get("replication", "OSD-237")
     
     def process_study(study_id):
-        print(f"Downloading files for {study_id}...")
+        print(f"Processing {study_id}...")
         try:
-            # Download ISA sample file (starts with s_, ends with .txt, or just metadata zip)
-            # Actually, GeneLab normalized counts:
-            counts = download(study_id, r"Normalized_Counts.*\.csv")
-            isa = download(study_id, r"^s_.*\.txt")
-            
-            if not counts or not isa:
-                raise FileNotFoundError(f"Could not download counts or ISA files for {study_id}.")
+            manual_dir = repo_root / "data" / "raw" / "manual" / "osdr" / study_id
+            if manual_dir.exists():
+                harmonize_osdr(study_id, Path("dummy"), Path("dummy"), ledger)
+            else:
+                counts = download(study_id, r"Normalized_Counts.*\.csv")
+                isa = download(study_id, r"^s_.*\.txt")
+                if not counts or not isa:
+                    raise FileNotFoundError(f"Could not download counts or ISA files for {study_id}.")
+                harmonize_osdr(study_id, counts[0], isa[0], ledger)
                 
-            harmonize_osdr(study_id, counts[0], isa[0], ledger)
-        except Exception as e:
-            print(f"Failed to process {study_id}: {e}")
-            traceback.print_exc()
-            # Log BLOCKED in PROGRESS.md
+            # Clear BLOCKED if success
             prog_path = repo_root / "PROGRESS.md"
             if prog_path.exists():
                 content = prog_path.read_text(encoding="utf-8")
                 content = content.replace(
-                    "- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237.",
-                    "- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**\n- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237."
+                    "- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**\n",
+                    ""
                 )
                 prog_path.write_text(content, encoding="utf-8")
+                
+        except Exception as e:
+            print(f"Failed to process {study_id}: {e}")
+            traceback.print_exc()
+            prog_path = repo_root / "PROGRESS.md"
+            if prog_path.exists():
+                content = prog_path.read_text(encoding="utf-8")
+                if "BLOCKED: Unable to download" not in content:
+                    content = content.replace(
+                        "- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237.",
+                        "- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**\n- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237."
+                    )
+                    prog_path.write_text(content, encoding="utf-8")
             
     process_study(discovery_id)
     process_study(replication_id)

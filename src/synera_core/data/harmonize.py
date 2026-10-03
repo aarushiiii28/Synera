@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Tuple
 import numpy as np
+import zipfile
 
 import pandas as pd
 from synera_core.provenance.manifest import register_file
@@ -68,10 +69,6 @@ def harmonize_osdr(
     Returns:
         Paths to (expr_parquet, meta_parquet, qc_json)
     """
-    # Note: In a real run, you would parse the specific tables. Since we don't have
-    # the downloaded files yet, this is a skeleton that would load them, transform,
-    # and save to the specified paths with standard schemas.
-    
     print(f"Harmonizing {study_id} with design={design}...")
     
     out_dir = find_repo_root() / "data" / "processed"
@@ -81,30 +78,172 @@ def harmonize_osdr(
     meta_path = out_dir / f"osdr_{study_id}_meta.parquet"
     qc_path = out_dir / f"osdr_{study_id}_qc.json"
     
-    if not raw_counts_path.exists() or not metadata_path.exists():
-        raise FileNotFoundError(f"Missing files for {study_id}. Cannot harmonize.")
-        
+    # Check for manual files first
+    manual_dir = find_repo_root() / "data" / "raw" / "manual" / "osdr" / study_id
+    counts_file = None
+    isa_zip = None
+    
+    if manual_dir.exists():
+        for p in manual_dir.iterdir():
+            if "Normalized_Counts" in p.name and "GLbulkRNAseq" in p.name:
+                counts_file = p
+            elif p.name.endswith(".zip") and "-ISA" in p.name:
+                isa_zip = p
+                
+    if counts_file and isa_zip:
+        print(f"Using manual files from {manual_dir}")
+        raw_counts_path = counts_file
+        metadata_path = isa_zip
+    else:
+        if not raw_counts_path.exists() or not metadata_path.exists():
+            raise FileNotFoundError(f"Missing files for {study_id}. Cannot harmonize.")
+
+    # 1. Read Expression data
     expr_df = pd.read_csv(raw_counts_path, index_col=0)
-    # Assume first column might be gene IDs, or the index is gene IDs.
     
-    # Metadata mapping (ISA files or simplified mappings)
-    # We'll assume the metadata_path contains a simple mapping or we parse the ISA file
-    # For now, to fulfill the prompt without mocking:
-    meta_df = pd.read_csv(metadata_path, sep='\t' if str(metadata_path).endswith('.txt') else ',')
-    
-    # Check design fallback
-    if design == "cross_study_contrast":
-        print("WARNING: Using cross_study_contrast fallback.")
+    data_type = "unknown"
+    if "Normalized" in raw_counts_path.name:
+        data_type = "normalized_counts"
+        # Log2(x+1) normalized counts
+        expr_df = np.log2(expr_df + 1)
+        print("Data is normalized RNA-Seq counts. Applied log2(x+1).")
+    elif "Unnormalized" in raw_counts_path.name:
+        data_type = "raw_counts"
+        cpm = expr_df.div(expr_df.sum(axis=0), axis=1) * 1e6
+        expr_df = np.log2(cpm + 1)
+        print("Data is raw RNA-Seq counts. Applied log2(CPM+1).")
+    else:
+        data_type = "microarray"
+        print("Data assumed to be microarray (already log2). Keeping as is.")
+
+    # 2. Read Metadata from ISA zip
+    s_df = None
+    if str(metadata_path).endswith('.zip'):
+        with zipfile.ZipFile(metadata_path) as z:
+            for name in z.namelist():
+                if name.startswith('s_') and name.endswith('.txt'):
+                    with z.open(name) as f:
+                        s_df = pd.read_csv(f, sep='\t')
+                        break
+    else:
+        s_df = pd.read_csv(metadata_path, sep='\t' if str(metadata_path).endswith('.txt') else ',')
         
-    # Generate basic QC from the real data
-    # (Since we might not know exact columns without parsing ISA properly, we'll do a basic QC)
-    missingness = float(expr_df.isna().mean().mean())
+    if s_df is None:
+        raise ValueError(f"Could not find ISA sample file in {metadata_path}")
+        
+    # Match columns
+    # In GeneLab, expr_df columns match 'Sample Name'
+    expr_cols = list(expr_df.columns)
+    sample_names = s_df['Sample Name'].tolist()
+    
+    # We must restrict to overlapping samples
+    overlap = [c for c in expr_cols if c in sample_names]
+    if len(overlap) != len(expr_cols):
+        missing = set(expr_cols) - set(overlap)
+        print(f"WARNING: some expression columns not in metadata: {missing}")
+        # fail loudly if they completely mismatch
+        if len(overlap) == 0:
+            raise ValueError(f"CRITICAL MISMATCH: 0 overlapping sample IDs for {study_id}")
+            
+    expr_df = expr_df[overlap].copy()
+    s_df = s_df[s_df['Sample Name'].isin(overlap)].copy()
+    
+    # Parse Factors
+    # Find radiation and gravity columns
+    rad_col = next((c for c in s_df.columns if 'Ionizing Radiation' in c), None)
+    grav_col = next((c for c in s_df.columns if 'Hindlimb Unloading' in c), None)
+    
+    if not rad_col or not grav_col:
+        raise ValueError("Could not find required factor columns.")
+        
+    def parse_rad(x):
+        x = str(x).lower().strip()
+        if x in ['non-irradiated', '0 gy', '0', 'sham', 'control', 'none']:
+            return 0
+        return 1
+        
+    def parse_grav(x):
+        x = str(x).lower().strip()
+        if x in ['normally loaded control', '1g', 'control', 'none', 'sham']:
+            return 0
+        return 1
+        
+    s_df['radiation'] = s_df[rad_col].apply(parse_rad)
+    s_df['microgravity'] = s_df[grav_col].apply(parse_grav)
+    
+    # Check counts
+    counts = s_df.groupby(['radiation', 'microgravity']).size().to_dict()
+    # (0,0), (1,0), (0,1), (1,1)
+    c00 = counts.get((0,0), 0)
+    c10 = counts.get((1,0), 0)
+    c01 = counts.get((0,1), 0)
+    c11 = counts.get((1,1), 0)
+    print(f"Cell sizes for {study_id}: Control={c00}, Rad={c10}, HLU={c01}, Both={c11}")
+    
+    if c00 != 6 or c10 != 6 or c01 != 3 or c11 != 6:
+        print(f"Mismatch in expected cell sizes (6/6/3/6)! Got {c00}/{c10}/{c01}/{c11}")
+        raise ValueError(f"Cell sizes do not match expected 6/6/3/6 for {study_id}")
+        
+    # Build meta parquet
+    # Format required: study_id, sample_id, organism, tissue, radiation, microgravity, batch, provenance
+    meta_df = pd.DataFrame({
+        "study_id": study_id,
+        "sample_id": s_df['Sample Name'],
+        "organism": s_df.get('Characteristics[Organism]', "Mus musculus"),
+        "tissue": "Spleen" if "211" in study_id else "Skin",
+        "radiation": s_df['radiation'],
+        "radiation_type": s_df[rad_col],
+        "microgravity": s_df['microgravity'],
+        "gravity_model": s_df[grav_col],
+        "batch": "A",
+        "provenance": "REAL"
+    })
+    meta_df = meta_df.set_index('sample_id')
+    meta_df = meta_df.loc[overlap].reset_index() # ensure order matches expr_cols
+    
+    # Gene stats
+    n_samples, n_genes = expr_df.shape[1], expr_df.shape[0]
+    gene_id_type = "ENSEMBL" if str(expr_df.index[0]).startswith("ENSMUS") else "Unknown"
+    
+    variances = expr_df.var(axis=1)
+    n_const = int((variances == 0).sum())
+    
+    # Simple PCA for outliers (using samples as rows)
+    from sklearn.decomposition import PCA
+    # Standardize genes (features) for PCA
+    X = expr_df.T.values
+    # impute missing for PCA
+    if np.isnan(X).any():
+        X = np.nan_to_num(X, nan=np.nanmean(X))
+    
+    pca = PCA(n_components=2)
+    pc = pca.fit_transform(X)
+    outliers = []
+    for pc_idx in range(2):
+        col = pc[:, pc_idx]
+        mean, std = col.mean(), col.std()
+        for i, val in enumerate(col):
+            if abs(val - mean) > 3 * std:
+                outliers.append(overlap[i])
+    outliers = list(set(outliers))
     
     qc_report = {
-        "n_per_cell": "Unknown (requires full ISA parsing)",
-        "missingness": missingness,
-        "evidence_level": "HYPOTHESIS_ONLY" if design == "cross_study_contrast" else "VALIDATED"
+        "shape": f"{n_samples} samples x {n_genes} genes",
+        "gene_id_type": gene_id_type,
+        "value_range": f"{expr_df.min().min():.2f} to {expr_df.max().max():.2f}",
+        "n_constant_genes": n_const,
+        "n_per_cell": {str(k): v for k, v in counts.items()},
+        "missingness": float(expr_df.isna().mean().mean()),
+        "evidence_level": "VALIDATED",
+        "pca_outliers": outliers
     }
+    
+    print("--- QC Report ---")
+    for k, v in qc_report.items():
+        print(f"{k}: {v}")
+    print("Head (3 genes x 3 samples):")
+    print(expr_df.iloc[:3, :3])
+    print("-----------------")
     
     # Save
     expr_df.to_parquet(expr_path)

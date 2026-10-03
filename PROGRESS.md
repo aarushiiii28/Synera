@@ -102,10 +102,6 @@ Team: **PeakyGliders, Guru Nanak Dev University**
   - Added `tests/test_data_pipeline.py` mocking `httpx` to verify API wrappers without network calls. Tests pass.
 
 ### Blocked Items
-- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**
-- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**
-- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**
-- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**
 - *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237. These studies have an animal overlap (20 animals), so the evidence level is set to `CROSS_TISSUE_SAME_COHORT`.)
 
 ### Next Steps (Part 4)
