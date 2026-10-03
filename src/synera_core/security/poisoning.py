@@ -96,11 +96,31 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
         else:
             mcd_scores = np.zeros(X.shape[0])
             
-        # Very simple Autoencoder logic (using PCA reconstruction as proxy)
-        from sklearn.decomposition import PCA
-        n_comp = min(X.shape[1], 10)
-        pca = PCA(n_components=n_comp)
-        X_rec = pca.inverse_transform(pca.fit_transform(X))
+        # Very simple Autoencoder logic using PyTorch
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+        torch.manual_seed(42)
+        n_features = X.shape[1]
+        n_hidden = max(2, n_features // 2)
+        model = nn.Sequential(
+            nn.Linear(n_features, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_features)
+        )
+        opt = optim.Adam(model.parameters(), lr=0.01)
+        loss_fn = nn.MSELoss()
+        X_t = torch.tensor(X, dtype=torch.float32)
+        for _ in range(50):
+            opt.zero_grad()
+            out = model(X_t)
+            loss = loss_fn(out, X_t)
+            loss.backward()
+            opt.step()
+            
+        with torch.no_grad():
+            X_rec = model(X_t).numpy()
+            
         rec_errors = np.mean((X - X_rec)**2, axis=1)
         rec_scores = rec_errors / (np.median(rec_errors) + 1e-9)
         

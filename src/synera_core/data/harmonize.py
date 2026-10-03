@@ -83,8 +83,8 @@ def harmonize_osdr(
     counts_file = None
     isa_zip = None
     
-    from synera_core.config import load_settings
-    settings = load_settings()
+    from synera_core.config import get_settings
+    settings = get_settings().model_dump()
     variant = settings.get('osdr_expression_variant', 'rRNArm')
     
     if manual_dir.exists():

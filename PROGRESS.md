@@ -137,15 +137,26 @@ Team: **PeakyGliders, Guru Nanak Dev University**
 Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at q<0.05 with 38% power; no gene-level interaction findings. Track A is used for method demonstration and cross-tissue consistency; the engine's accuracy is established on Track B.
 
 ### Track B (Benchmark) Headline Numbers
-- **Precision:** 0.118 (SNR 1.0) / 0.093 (SNR 5.0)
-- **Recall:** 1.0 (SNR 1.0) / 1.0 (SNR 5.0)
-- **Type Classification Accuracy:** 0.166 (SNR 1.0) / 0.333 (SNR 5.0)
+- **Naive (Continuous OLS without gates):** Precision 0.18-0.22, Recall 1.0, FDR ~0.78-0.82.
+- **Full Stack (HAC-robust + Effect-Size Gate + Second Opinions):** Precision 1.0 (no false positives), Recall 0.0 (too conservative), FDR "n/a". 
+- **Type Classification Accuracy:** 0.0 (Full Stack), ~0.2-0.3 (Naive)
 - **Runtime:** ~1.8s per iteration.
-*(Note: Continuous interactions without multi-stage filtering yield high recall but high FDR).*
+- **Null Calibration:** Lambda=2.142 under no interactions (strong inflation for naive continuous testing without robust errors or moving-block bootstrap). Histogram heavily skewed left towards small p-values.
+*(Note: Full stack eliminated the 80% false discovery rate but at the complete cost of power on this small n=20 dataset size. Effect-size gate of 0.5 was too stringent for the planted noise.)*
 
 ### Part 5 Addendum Results
-1. **Empirical Variance Moderation:** Using method-of-moments to estimate prior df and prior variance, OSD-211 estimated `prior_df=0.66`, OSD-237 estimated `prior_df=0.21`. The extremely low prior dfs indicate huge between-gene variance dispersion, effectively turning off moderation. Rerunning the additive models with empirical moderation yields **0 hits** for both Rad and HLU in both studies. The previous 9 hits in OSD-237 (with fixed prior df=4) were artifacts of shrinking the massive Poisson variance of very low-expression genes (mean log2 < 4) towards the median. 
-2. **Library Size Covariate:** Including `log2(lib_size)` as a covariate similarly removes all hits (0 Rad, 0 HLU) in both studies, confirming that earlier hits were likely driven by residual library-size artifacts.
-3. **PC1 Driver (OSD-237):** PC1 explains 47.4% of the variance in OSD-237. Testing against all ISA metadata columns revealed **no significant biological drivers**. The best candidate was `Factor Value[Ionizing Radiation]` with an insignificant $p=0.136$. The driver remains "unexplained" (likely a batch or processing artifact not recorded in the ISA).
-4. **Benchmark Moderation On vs Off (6/6/3/6):** Simulated 2x2 factorial with planted interaction. Due to small cell sizes (n=3 in interaction cell), power was 0.00 for both Moderation ON and OFF at FDR 0.05.
+1. **Empirical Variance Moderation:** Using method-of-moments to estimate prior df and prior variance, OSD-211 estimated `prior_df=0.66`, OSD-237 estimated `prior_df=0.21`. The extremely low prior dfs indicate huge between-gene variance dispersion, effectively turning off moderation. Rerunning the additive models with empirical moderation yields **0 hits** for both Rad and HLU in both studies. The previous 9 skin hits (with fixed prior df=4) did not survive a data-estimated prior or library-size adjustment (they are kept for analysis but are heavily dependent on prior assumptions).
+2. **Library Size Covariate:** Including `log2(lib_size)` as a covariate similarly removes all hits (0 Rad, 0 HLU) in both studies.
+3. **PC1 Driver (OSD-237):** PC1 explains 47.4% of the variance in OSD-237. Testing against all ISA metadata columns revealed **no significant biological drivers**. The best candidate was `Factor Value[Ionizing Radiation]` with an insignificant $p=0.136$. The driver remains "unexplained".
+4. **Benchmark Moderation On vs Off (6/6/3/6):** Simulated 2x2 factorial. Fixed Prior (df=4) yielded Power 0.21, FDR 0.05. Est Prior (df=11.29) yielded Power 0.24, FDR 0.00. Moderation OFF yielded Power 0.21, FDR 0.09. 
+
+### Security & Integrity Audits
+- **Design Audit (Decoys vs Planted):** 
+  - HARD decoys (|r| >= 0.6): `no2` vs `pm25` (r=0.642), `uv` vs `heat_index` (r=0.671), `pm10` vs `pm25` (r=0.930). 
+  - Rest were MEDIUM or EASY.
+- **Poisoning Sweep:** 
+  - False Alarm Rate on 100 clean seeds: 0%.
+  - Row edit, outlier injection, and unit drift (at 1, 5, 10, 20% contamination) were **all caught 100% of the time by the cryptographic hash checks**. 
+  - Statistical detectors (IsolationForest, PyTorch AE proxy) detected 0/5 at these low n=20 sample sizes without registered baselines. The attacks were solely caught by cryptographic hashing.
+- **Hair-cycle check:** NEED USER to supply a symbol map (Ensembl IDs to Gene Symbols) to identify keratin / keratinocyte-differentiation markers on OSD-237.
 
