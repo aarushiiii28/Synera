@@ -7,19 +7,22 @@ from synera_core.security.integrity import (
     guard_verified_status,
     verify_file_integrity,
 )
-from synera_core.security.model_verify import verify_model_artifact
-from synera_core.security.pipeline_integrity import verify_stage_transitions
-from synera_core.security.poisoning import detect_poisoning_candidates
-from synera_core.security.tamper_sim import simulate_bit_flip
+from synera_core.security.model_verify import register_model, verify_model
+from synera_core.security.pipeline_integrity import snapshot_pipeline, detect_code_drift, reproducibility_replay
+from synera_core.security.poisoning import scan_dataset
+from synera_core.security.tamper_sim import simulate_attack
 
 __all__ = [
     "IntegrityGuard",
     "IntegrityResult",
     "compute_file_sha256",
-    "detect_poisoning_candidates",
+    "scan_dataset",
     "guard_verified_status",
-    "simulate_bit_flip",
+    "simulate_attack",
     "verify_file_integrity",
-    "verify_model_artifact",
-    "verify_stage_transitions",
+    "register_model",
+    "verify_model",
+    "snapshot_pipeline",
+    "detect_code_drift",
+    "reproducibility_replay",
 ]

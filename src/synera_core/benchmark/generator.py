@@ -1,59 +1,108 @@
-"""Synthetic benchmark generator with planted multi-stressor interactions.
-
-Generates ground-truth simulated outcomes on real or synthetic covariates to
-rigorously evaluate discovery precision, recall, and FDR control.
-
-NOTE: All generated data carries provenance=SIMULATED.
-"""
-
-from __future__ import annotations
-
-from typing import Any
-
-import numpy as np
 import pandas as pd
+import numpy as np
+from pathlib import Path
+from synera_core.provenance.manifest import register_file
+from synera_core.provenance.ledger import Ledger
+from synera_core.config import find_repo_root
+import json
+import hashlib
 
-
-def generate_benchmark_dataset(
-    n_samples: int = 200,
-    n_stressors: int = 5,
-    seed: int = 20260929,
-) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Generate simulated dataset with planted ground-truth synergy and antagonism.
-
-    Args:
-        n_samples: Number of observations.
-        n_stressors: Number of stressor covariate columns.
-        seed: Random seed for deterministic generation.
-
-    Returns:
-        Tuple of (DataFrame with simulated provenance metadata, ground_truth_dict).
-    """
+def generate_benchmark(snr: float = 2.0, rho: float = 0.5, n_per_city: int = 100, 
+                       n_decoys: int = 5, seed: int = 42, 
+                       out_dir: Path = None, ledger: Ledger = None):
+    """Generate semi-synthetic benchmark with planted ground truth."""
+    if out_dir is None:
+        out_dir = find_repo_root() / "data" / "synthetic"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
     rng = np.random.default_rng(seed)
-    stressor_cols = [f"stressor_{i+1}" for i in range(n_stressors)]
-    x = rng.normal(0.0, 1.0, size=(n_samples, n_stressors))
-    df = pd.DataFrame(x, columns=stressor_cols)
-
-    # Plant synergy between stressor_1 and stressor_2
-    # Combined > additive
-    synergy_term = 1.2 * (df["stressor_1"] * df["stressor_2"])
-    # Plant antagonism between stressor_3 and stressor_4
-    # Combined < additive
-    antagonism_term = -1.0 * (df["stressor_3"] * df["stressor_4"])
-    noise = rng.normal(0.0, 0.2, size=n_samples)
-
-    df["outcome"] = (
-        0.8 * df["stressor_1"]
-        + 0.5 * df["stressor_2"]
-        + synergy_term
-        + antagonism_term
-        + noise
-    )
-    df["provenance"] = "SIMULATED"
-
-    ground_truth = {
-        "planted_synergies": [("stressor_1", "stressor_2")],
-        "planted_antagonisms": [("stressor_3", "stressor_4")],
-        "provenance": "SIMULATED",
+    
+    # 1. Load Real Covariates
+    env_df = pd.read_parquet(find_repo_root() / "data" / "processed" / "env_panel.parquet")
+    
+    # Sample n_per_city per city to ensure balance and sort by date for AR(1)
+    env_df = pd.concat([g.sample(min(n_per_city, len(g)), random_state=seed) for _, g in env_df.groupby("city")])
+    env_df = env_df.sort_values(["city", "date"]).reset_index(drop=True)
+    
+    features = ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    
+    # Standardize per city
+    for f in features:
+        env_df[f] = env_df.groupby("city")[f].transform(lambda x: (x - x.mean()) / (x.std() + 1e-9))
+    
+    env_df = env_df.dropna(subset=features)
+    
+    # 2. Planted Truth Table
+    truth = {
+        "interactions": [
+            {"var1": "heat_index", "var2": "pm25", "type": "SYNERGISTIC", "effect": 1.5},
+            {"var1": "heat_index", "var2": "rh", "type": "ANTAGONISTIC", "effect": -1.5},
+            {"var1": "o3", "var2": "heat_index", "type": "NONLINEAR", "effect": 2.0}
+        ],
+        "decoys": []
     }
-    return df, ground_truth
+    
+    # 3. Generate Outcome
+    y = np.zeros(len(env_df))
+    
+    # Baseline + city effect + seasonal
+    city_effects = {city: rng.normal(0, 1) for city in env_df['city'].unique()}
+    y += env_df['city'].map(city_effects)
+    
+    day_of_year = pd.to_datetime(env_df['date']).dt.dayofyear
+    y += np.sin(2 * np.pi * day_of_year / 365) + np.cos(2 * np.pi * day_of_year / 365)
+    
+    # Main effects for the interacting vars
+    for var in ["heat_index", "pm25", "rh", "o3"]:
+        y += 0.5 * env_df[var].values
+        
+    # Planted interactions
+    # SYNERGISTIC: heat_index x pm25
+    y += 1.5 * (env_df["heat_index"] * env_df["pm25"]).values
+    
+    # ANTAGONISTIC: heat_index x rh
+    y += -1.5 * (env_df["heat_index"] * env_df["rh"]).values
+    
+    # NONLINEAR: o3 x heat_index (sigmoid switch on heat_index)
+    sigmoid_hi = 1 / (1 + np.exp(-3 * env_df["heat_index"].values))
+    y += 2.0 * env_df["o3"].values * sigmoid_hi
+    
+    # Decoys (main effects only)
+    decoy_candidates = ["drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    chosen_decoys = rng.choice(decoy_candidates, min(n_decoys, len(decoy_candidates)), replace=False)
+    for dc in chosen_decoys:
+        eff = rng.choice([1.0, -1.0])
+        y += eff * env_df[dc].values
+        truth["decoys"].append({"var": dc, "effect": eff})
+        
+    # AR(1) noise per city
+    noise = np.zeros(len(env_df))
+    for city in env_df['city'].unique():
+        idx = env_df['city'] == city
+        n_city = idx.sum()
+        city_noise = np.zeros(n_city)
+        city_noise[0] = rng.normal(0, 1)
+        for t in range(1, n_city):
+            city_noise[t] = rho * city_noise[t-1] + np.sqrt(1 - rho**2) * rng.normal(0, 1)
+        noise[idx] = city_noise
+        
+    signal_var = np.var(y)
+    target_noise_var = signal_var / snr
+    noise = noise * np.sqrt(target_noise_var)
+    
+    env_df["outcome"] = y + noise
+    env_df["provenance"] = "SIMULATED"
+    
+    # 4. Save and Register
+    out_path = out_dir / f"benchmark_snr{snr}_seed{seed}.parquet"
+    env_df.to_parquet(out_path, index=False)
+    
+    truth_path = out_dir / f"benchmark_truth_snr{snr}_seed{seed}.json"
+    with open(truth_path, "w") as f:
+        json.dump(truth, f, indent=2)
+        
+    if ledger:
+        register_file(ledger, out_path, "dataset", {"snr": snr, "rho": rho, "seed": seed})
+        register_file(ledger, truth_path, "dataset", {"type": "truth", "seed": seed})
+        
+    return out_path, truth_path

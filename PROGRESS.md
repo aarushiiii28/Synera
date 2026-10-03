@@ -136,3 +136,16 @@ Team: **PeakyGliders, Guru Nanak Dev University**
 ### Track A Scientific Summary
 Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at q<0.05 with 38% power; no gene-level interaction findings. Track A is used for method demonstration and cross-tissue consistency; the engine's accuracy is established on Track B.
 
+### Track B (Benchmark) Headline Numbers
+- **Precision:** 0.118 (SNR 1.0) / 0.093 (SNR 5.0)
+- **Recall:** 1.0 (SNR 1.0) / 1.0 (SNR 5.0)
+- **Type Classification Accuracy:** 0.166 (SNR 1.0) / 0.333 (SNR 5.0)
+- **Runtime:** ~1.8s per iteration.
+*(Note: Continuous interactions without multi-stage filtering yield high recall but high FDR).*
+
+### Part 5 Addendum Results
+1. **Empirical Variance Moderation:** Using method-of-moments to estimate prior df and prior variance, OSD-211 estimated `prior_df=0.66`, OSD-237 estimated `prior_df=0.21`. The extremely low prior dfs indicate huge between-gene variance dispersion, effectively turning off moderation. Rerunning the additive models with empirical moderation yields **0 hits** for both Rad and HLU in both studies. The previous 9 hits in OSD-237 (with fixed prior df=4) were artifacts of shrinking the massive Poisson variance of very low-expression genes (mean log2 < 4) towards the median. 
+2. **Library Size Covariate:** Including `log2(lib_size)` as a covariate similarly removes all hits (0 Rad, 0 HLU) in both studies, confirming that earlier hits were likely driven by residual library-size artifacts.
+3. **PC1 Driver (OSD-237):** PC1 explains 47.4% of the variance in OSD-237. Testing against all ISA metadata columns revealed **no significant biological drivers**. The best candidate was `Factor Value[Ionizing Radiation]` with an insignificant $p=0.136$. The driver remains "unexplained" (likely a batch or processing artifact not recorded in the ISA).
+4. **Benchmark Moderation On vs Off (6/6/3/6):** Simulated 2x2 factorial with planted interaction. Due to small cell sizes (n=3 in interaction cell), power was 0.00 for both Moderation ON and OFF at FDR 0.05.
+
