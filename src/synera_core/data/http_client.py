@@ -39,6 +39,7 @@ class HTTPClient:
         self.client = httpx.Client(
             headers={"User-Agent": USER_AGENT},
             timeout=30.0,
+            follow_redirects=True,
         )
 
     def _get_cache_key(self, url: str, params: Optional[Dict[str, Any]] = None) -> str:

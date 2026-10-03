@@ -1,5 +1,22 @@
 {
-  "version": "1.0.0",
-  "generated_at": null,
-  "files": {}
+  "git_commit": "9b26a467489cd9251d5d17e486a890f074fe39d2",
+  "src_tree_hash": "4e69e3542ca48822760da41b5caefe574121dc2d519cfa34d074609814cd188e",
+  "configs_hash": "69c03cdb370d700412a812ae7e3d79a7c929e0c17890684d921044e46104cc98",
+  "pyproject_hash": "dc1e45dfc2e33ff2f70fcd56750a950cf1279a9120a52642fb0353c5ba7df292",
+  "env_versions": {
+    "python": "3.11.8",
+    "numpy": "2.4.6",
+    "pandas": "3.0.6",
+    "scipy": "1.17.1",
+    "cryptography": "50.0.1",
+    "scikit-learn": "1.9.1"
+  },
+  "seed": 42,
+  "dataset_hashes": {
+    "raw_cache": "auto"
+  },
+  "model_hashes": {},
+  "config": {
+    "script_name": "scripts/build_data.py"
+  }
 }

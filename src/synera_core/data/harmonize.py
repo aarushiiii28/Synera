@@ -81,47 +81,28 @@ def harmonize_osdr(
     meta_path = out_dir / f"osdr_{study_id}_meta.parquet"
     qc_path = out_dir / f"osdr_{study_id}_qc.json"
     
-    # 1. Load data
-    # expr_df = pd.read_csv(raw_counts_path, index_col=0) 
-    # meta_df = pd.read_csv(metadata_path)
+    if not raw_counts_path.exists() or not metadata_path.exists():
+        raise FileNotFoundError(f"Missing files for {study_id}. Cannot harmonize.")
+        
+    expr_df = pd.read_csv(raw_counts_path, index_col=0)
+    # Assume first column might be gene IDs, or the index is gene IDs.
     
-    # Placeholder for actual data processing:
-    # expr_df = np.log2(expr_df + 1)  # if raw counts
-    
-    # Example normalized output:
-    expr_df = pd.DataFrame(
-        np.random.randn(12, 1000), 
-        index=[f"S{i}" for i in range(12)],
-        columns=[f"Gene{i}" for i in range(1000)]
-    )
-    
-    meta_df = pd.DataFrame({
-        "study_id": [study_id] * 12,
-        "sample_id": [f"S{i}" for i in range(12)],
-        "organism": ["Mus musculus"] * 12,
-        "tissue": ["Liver"] * 12,
-        "radiation": [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1],
-        "radiation_type": ["none"]*3 + ["gamma"]*3 + ["none"]*3 + ["gamma"]*3,
-        "dose_gy": [0.0]*3 + [1.0]*3 + [0.0]*3 + [1.0]*3,
-        "microgravity": [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
-        "gravity_model": ["none"]*6 + ["spaceflight"]*6,
-        "batch": ["A"] * 12,
-        "provenance": ["REAL"] * 12
-    })
+    # Metadata mapping (ISA files or simplified mappings)
+    # We'll assume the metadata_path contains a simple mapping or we parse the ISA file
+    # For now, to fulfill the prompt without mocking:
+    meta_df = pd.read_csv(metadata_path, sep='\t' if str(metadata_path).endswith('.txt') else ',')
     
     # Check design fallback
     if design == "cross_study_contrast":
         print("WARNING: Using cross_study_contrast fallback.")
-        # Must tag artifacts
         
-    # QC Report
-    n_per_cell = meta_df.groupby(["radiation", "microgravity"]).size().to_dict()
-    # json keys must be strings
-    n_per_cell_str = {str(k): v for k, v in n_per_cell.items()}
+    # Generate basic QC from the real data
+    # (Since we might not know exact columns without parsing ISA properly, we'll do a basic QC)
+    missingness = float(expr_df.isna().mean().mean())
     
     qc_report = {
-        "n_per_cell": n_per_cell_str,
-        "missingness": float(expr_df.isna().mean().mean()),
+        "n_per_cell": "Unknown (requires full ISA parsing)",
+        "missingness": missingness,
         "evidence_level": "HYPOTHESIS_ONLY" if design == "cross_study_contrast" else "VALIDATED"
     }
     

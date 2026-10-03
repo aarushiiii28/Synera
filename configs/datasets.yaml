@@ -11,6 +11,9 @@
 #   outcome: str
 #   status: "REGISTERED" | "INGESTED" | "VALIDATED"
 
+discovery: "OSD-211"
+replication: "OSD-237"
+
 datasets:
   - id: "osdr_space_radiation_microgravity"
     track: "A"

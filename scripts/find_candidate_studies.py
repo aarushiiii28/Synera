@@ -51,8 +51,16 @@ def main():
         source_str = json.dumps(source).lower()
         combined_str = meta_str + source_str
         
+        # Extract factors from meta
+        study = meta.get("study", {})
+        factors = study.get("study_factors", [])
+        factors_str = json.dumps(factors).lower()
+        
         has_gravity = any(x in combined_str for x in ["spaceflight", "microgravity", "hindlimb unloading", "clinostat"])
-        has_rad = any(x in combined_str for x in ["radiation", "ionizing", "heavy ion", "hze", "gamma", "proton", "gray", "gy"])
+        
+        # Radiation must be a factor, not just mentioned in spaceflight text
+        rad_terms = ["dose", "irradiated", "gamma", "ionizing", "proton", "hze", "radiation"]
+        has_rad = any(x in factors_str for x in rad_terms)
         
         score = 0
         is_2x2 = False

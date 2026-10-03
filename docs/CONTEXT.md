@@ -21,11 +21,17 @@ candidate findings, interaction & evidence graphs, validation status, confidence
 Synergistic (combined > additive expectation), Antagonistic (combined < additive expectation), Nonlinear
 (threshold / non-monotonic / unpredictable response).
 
-## Finding lifecycle
+## Finding lifecycle & Evidence Levels
 CANDIDATE -> VALIDATED (stats pass) -> VERIFIED (replicated + security CLEAN + ledger chain valid + reproducibility
 replay matches). BLOCKED = any integrity failure ("result blocked from verified status"). REJECTED = failed stats or
 replication. VERIFIED means "statistically validated with verified computational provenance". It NEVER means
 "biologically proven". The UI must say so.
+
+Evidence levels for findings:
+- INDEPENDENT_REPLICATION: Replicated in completely independent cohorts/studies.
+- CROSS_TISSUE_SAME_COHORT: Replicated across different tissues from the same animals/cohort (consistency check).
+- INTERNAL_REPLICATION: Replicated using subset splitting or cross-validation within a single dataset.
+- HYPOTHESIS_ONLY: Cannot be statistically replicated (e.g., cross-study contrast fallback).
 
 ## Data tracks
 A. Space Biology Testbed (REAL): NASA OSDR/GeneLab omics, Radiation x Microgravity -> gene-level response.
