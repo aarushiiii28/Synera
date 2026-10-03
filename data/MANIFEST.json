@@ -15,39 +15,20 @@
     "scipy": "1.17.1"
   },
   "files": {
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_expr.parquet": {
-      "block_index": 0,
+    "D:/synera1.0/synera/data/processed/env_panel.parquet": {
+      "block_index": 24,
       "kind": "dataset",
       "meta": {
-        "design": "factorial",
-        "study_id": "OSD-999",
-        "type": "expr"
+        "description": "Environmental stressor panel",
+        "provenance": "REAL"
       },
-      "sha256": "7db34a5a2c9dc0a8b6cd4c926d1726bf727efee8945bdc2cacabbdf6ad6fc6e6"
-    },
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_meta.parquet": {
-      "block_index": 1,
-      "kind": "dataset",
-      "meta": {
-        "design": "factorial",
-        "study_id": "OSD-999",
-        "type": "meta"
-      },
-      "sha256": "8b7d66276a067afd26627adc2b590bc6db9bf3227fb46277face2cd41f061e84"
-    },
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_qc.json": {
-      "block_index": 2,
-      "kind": "qc_report",
-      "meta": {
-        "study_id": "OSD-999"
-      },
-      "sha256": "26e4d614f8797e33e11257816c2c277427a0663f63f8e8976f5282c06a25274f"
+      "sha256": "638456eaf9bb9d9c59f91bff436939e2ea0df1c08e3aa5ff4ceac907448f70d6"
     }
   },
-  "generated_at": "2026-10-03T07:11:36.780091+00:00",
-  "git_commit": "47df5387fd89bee933bdeac7e7ca9403d555a985",
+  "generated_at": "2026-10-03T07:26:30.474450+00:00",
+  "git_commit": "4d721f284c4fb688b4ef2a4de3f2c0692e01f79f",
   "model_hashes": {},
   "pyproject_hash": "dc1e45dfc2e33ff2f70fcd56750a950cf1279a9120a52642fb0353c5ba7df292",
   "seed": 42,
-  "src_tree_hash": "a019fcb6153d488ccc63bfb5e3c499af30c7c4612fb1bced62cb01bd9a3cf5f7"
+  "src_tree_hash": "8e4b59a33eb7282fedbf5d06ef8d71c2c25ba2431da0acdea05aeb53a38bf341"
 }

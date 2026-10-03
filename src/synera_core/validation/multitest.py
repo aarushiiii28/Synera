@@ -1,41 +1,28 @@
-"""Multiple testing corrections and false discovery rate (FDR) control."""
-
-from __future__ import annotations
+"""Multiple testing corrections."""
 
 import numpy as np
 
-
-def benjamini_hochberg(
-    p_values: np.ndarray | list[float],
-    alpha: float = 0.05,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Perform Benjamini-Hochberg False Discovery Rate (FDR) procedure.
-
-    Args:
-        p_values: Array of unadjusted p-values in [0, 1].
-        alpha: Target family-wise FDR threshold.
-
-    Returns:
-        Tuple of (reject_mask, q_values).
+def bh_fdr(p: np.ndarray) -> np.ndarray:
     """
-    pvals = np.asarray(p_values, dtype=float)
-    n = len(pvals)
+    Benjamini-Hochberg FDR (q-values), NaN-safe.
+    """
+    p = np.asarray(p, float)
+    q = np.full_like(p, np.nan)
+    ok = ~np.isnan(p)
+    pv = p[ok]
+    n = len(pv)
+    
     if n == 0:
-        return np.array([], dtype=bool), np.array([], dtype=float)
-
-    sorted_indices = np.argsort(pvals)
-    sorted_pvals = pvals[sorted_indices]
-
-    # q_i = p_i * n / rank
-    ranks = np.arange(1, n + 1)
-    q_vals = sorted_pvals * n / ranks
-    # Enforce monotonicity from right to left
-    q_vals = np.minimum.accumulate(q_vals[::-1])[::-1]
-    q_vals = np.clip(q_vals, 0.0, 1.0)
-
-    # Reorder back to original indices
-    orig_q_vals = np.empty_like(q_vals)
-    orig_q_vals[sorted_indices] = q_vals
-
-    reject = orig_q_vals <= alpha
-    return reject, orig_q_vals
+        return q
+        
+    order = np.argsort(pv)
+    ranked = pv[order] * n / np.arange(1, n + 1)
+    
+    # ensure monotonic
+    ranked = np.minimum.accumulate(ranked[::-1])[::-1]
+    
+    out = np.empty(n)
+    out[order] = np.clip(ranked, 0, 1)
+    q[ok] = out
+    
+    return q

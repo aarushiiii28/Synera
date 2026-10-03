@@ -5,6 +5,9 @@ alpha: 0.05
 fdr_method: "bh"
 min_abs_effect: 0.5  # log2 scale: multiplicative fold-change threshold
 
+# Track A configuration
+osdr_expression_variant: "rRNArm" # or "Normalized_Counts"
+
 bootstrap_reps: 2000
 cv_folds: 5
 max_findings_per_run: 50

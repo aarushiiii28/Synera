@@ -1,43 +1,44 @@
-"""Statistical bootstrapping procedures for confidence interval estimation."""
-
-from __future__ import annotations
-
-from collections.abc import Callable
+"""Bootstrap confidence intervals."""
 
 import numpy as np
+import pandas as pd
 
-
-def bootstrap_ci(
-    data: np.ndarray,
-    stat_fn: Callable[[np.ndarray], float],
-    n_reps: int = 2000,
-    ci_level: float = 0.95,
-    seed: int = 20260929,
-) -> tuple[float, float, float]:
-    """Calculate empirical percentile bootstrap confidence intervals.
-
-    Args:
-        data: Observed 1D or 2D dataset.
-        stat_fn: Function mapping sample to scalar statistic.
-        n_reps: Number of bootstrap resamples.
-        ci_level: Confidence level (e.g. 0.95 for 95% CI).
-        seed: Random generator seed for determinism.
-
-    Returns:
-        Tuple of (point_estimate, ci_lower, ci_upper).
+def factorial_bootstrap_ci(
+    Y: np.ndarray, 
+    X: np.ndarray, 
+    n_boot: int = 100, 
+    seed: int = 42, 
+    alpha: float = 0.05
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Vectorized case bootstrap for factorial OLS interaction coefficient.
+    
+    Y: (n_samples, n_features)
+    X: (n_samples, p)
+    Returns: (ci_low, ci_high) arrays of length n_features.
     """
     rng = np.random.default_rng(seed)
-    n = len(data)
-    point_est = float(stat_fn(data))
-    if n < 2:
-        return point_est, point_est, point_est
-
-    boot_stats = np.empty(n_reps)
-    for i in range(n_reps):
+    n, p = X.shape
+    n_features = Y.shape[1]
+    
+    # Pre-allocate boot array: (n_boot, n_features)
+    boot_betas = np.zeros((n_boot, n_features))
+    
+    for i in range(n_boot):
         idx = rng.choice(n, size=n, replace=True)
-        boot_stats[i] = stat_fn(data[idx])
-
-    alpha = 1.0 - ci_level
-    ci_lower = float(np.percentile(boot_stats, 100.0 * (alpha / 2.0)))
-    ci_upper = float(np.percentile(boot_stats, 100.0 * (1.0 - alpha / 2.0)))
-    return point_est, ci_lower, ci_upper
+        X_b = X[idx]
+        Y_b = Y[idx]
+        
+        # Check rank
+        try:
+            XtX_inv = np.linalg.pinv(X_b.T @ X_b)
+            beta = XtX_inv @ X_b.T @ Y_b
+            boot_betas[i, :] = beta[3]
+        except np.linalg.LinAlgError:
+            boot_betas[i, :] = np.nan
+            
+    # Percentile CI
+    ci_low = np.nanpercentile(boot_betas, 100 * (alpha / 2), axis=0)
+    ci_high = np.nanpercentile(boot_betas, 100 * (1 - alpha / 2), axis=0)
+    
+    return ci_low, ci_high

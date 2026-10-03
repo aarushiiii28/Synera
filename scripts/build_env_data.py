@@ -22,7 +22,7 @@ CITIES = {
     "Jakarta": {"lat": -6.2088, "lon": 106.8456}
 }
 
-START_DATE = "2023-01-01"
+START_DATE = "2022-08-01"
 END_DATE = "2023-12-31"
 
 def calculate_heat_index(t_c: pd.Series, rh: pd.Series) -> pd.Series:

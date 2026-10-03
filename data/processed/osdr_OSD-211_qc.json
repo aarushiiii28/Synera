@@ -1,5 +1,5 @@
 {
-  "shape": "21 samples x 28105 genes",
+  "shape": "21 samples x 24688 genes",
   "gene_id_type": "ENSEMBL",
   "value_range": "0.00 to 22.89",
   "n_constant_genes": 0,
@@ -11,5 +11,8 @@
   },
   "missingness": 0.0,
   "evidence_level": "VALIDATED",
-  "pca_outliers": []
+  "pca_outliers": [],
+  "variant": "GLDS-211_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv",
+  "genes_kept": 24688,
+  "genes_dropped": 3417
 }

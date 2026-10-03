@@ -1,13 +1,13 @@
-"""Scientific validation subpackage."""
+"""Validation subpackage."""
 
-from synera_core.validation.bootstrap import bootstrap_ci
-from synera_core.validation.confidence import calculate_confidence_score
-from synera_core.validation.multitest import benjamini_hochberg
-from synera_core.validation.replication import evaluate_replication
+from .multitest import bh_fdr
+from .bootstrap import factorial_bootstrap_ci
+from .replication import replicate
+from .confidence import compute_confidence
 
 __all__ = [
-    "benjamini_hochberg",
-    "bootstrap_ci",
-    "calculate_confidence_score",
-    "evaluate_replication",
+    "bh_fdr",
+    "factorial_bootstrap_ci",
+    "replicate",
+    "compute_confidence",
 ]

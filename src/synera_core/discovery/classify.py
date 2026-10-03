@@ -1,36 +1,39 @@
-"""Classification and categorization of discovered interaction types."""
+"""Interaction classification logic."""
 
-from __future__ import annotations
+import numpy as np
 
-from synera_core.discovery.interactions import InteractionType
-
-
-def classify_interaction_effect(
-    observed_effect: float,
-    additive_expectation: float,
-    p_value: float,
-    alpha: float = 0.05,
-    min_abs_effect: float = 0.5,
-) -> InteractionType:
-    """Classify the nature of an interaction given statistical test outcomes.
-
-    Args:
-        observed_effect: Observed joint response on log2 scale.
-        additive_expectation: Sum of marginal effects on log2 scale.
-        p_value: Multiple-testing corrected p-value for interaction term.
-        alpha: Significance threshold.
-        min_abs_effect: Minimum absolute effect size difference.
-
-    Returns:
-        InteractionType enum value.
+def classify_factorial(b_A: float, b_B: float, b_AB: float, q: float, alpha: float = 0.05, min_abs_effect: float = 0.5) -> dict:
     """
-    if p_value >= alpha:
-        return InteractionType.ADDITIVE
-
-    diff = observed_effect - additive_expectation
-    if abs(diff) < min_abs_effect:
-        return InteractionType.ADDITIVE
-
-    if diff > 0:
-        return InteractionType.SYNERGISTIC
-    return InteractionType.ANTAGONISTIC
+    Classify the interaction type.
+    
+    On a log2 scale, "additive" means multiplicative independence in fold change.
+    
+    Types: synergistic | antagonistic | none.
+    s = b_A + b_B (additive expectation).
+    If q >= alpha or |b_AB| < min_abs_effect -> none.
+    synergistic if s * b_AB > 0 (amplifies the additive expectation) else antagonistic (dampens it).
+    reversal = sign(s + b_AB) != sign(s) and s != 0.
+    interaction_only = |s| < 0.25 * |b_AB|.
+    """
+    s = b_A + b_B
+    
+    if np.isnan(q) or q >= alpha or abs(b_AB) < min_abs_effect:
+        itype = "none"
+    else:
+        if s * b_AB > 0:
+            itype = "synergistic"
+        else:
+            itype = "antagonistic"
+            
+    # For reversal, define sign carefully to avoid 0 issues.
+    sign_s = 1 if s > 0 else (-1 if s < 0 else 0)
+    sign_obs = 1 if (s + b_AB) > 0 else (-1 if (s + b_AB) < 0 else 0)
+    
+    reversal = (sign_obs != sign_s) and (s != 0)
+    interaction_only = abs(s) < 0.25 * abs(b_AB)
+    
+    return {
+        "type": itype,
+        "reversal": reversal,
+        "interaction_only": interaction_only
+    }

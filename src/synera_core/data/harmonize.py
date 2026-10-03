@@ -83,15 +83,23 @@ def harmonize_osdr(
     counts_file = None
     isa_zip = None
     
+    from synera_core.config import load_settings
+    settings = load_settings()
+    variant = settings.get('osdr_expression_variant', 'rRNArm')
+    
     if manual_dir.exists():
         for p in manual_dir.iterdir():
-            if "Normalized_Counts" in p.name and "GLbulkRNAseq" in p.name:
+            if variant == 'rRNArm' and "Normalized_Counts_rRNArm_GLbulkRNAseq.csv" in p.name:
+                counts_file = p
+            elif variant == 'Normalized_Counts' and "Normalized_Counts_GLbulkRNAseq.csv" in p.name and "rRNArm" not in p.name:
+                counts_file = p
+            elif "Normalized_Counts" in p.name and counts_file is None:
                 counts_file = p
             elif p.name.endswith(".zip") and "-ISA" in p.name:
                 isa_zip = p
                 
     if counts_file and isa_zip:
-        print(f"Using manual files from {manual_dir}")
+        print(f"Using manual files from {manual_dir}, variant: {counts_file.name}")
         raw_counts_path = counts_file
         metadata_path = isa_zip
     else:
@@ -104,7 +112,6 @@ def harmonize_osdr(
     data_type = "unknown"
     if "Normalized" in raw_counts_path.name:
         data_type = "normalized_counts"
-        # Log2(x+1) normalized counts
         expr_df = np.log2(expr_df + 1)
         print("Data is normalized RNA-Seq counts. Applied log2(x+1).")
     elif "Unnormalized" in raw_counts_path.name:
@@ -132,24 +139,29 @@ def harmonize_osdr(
         raise ValueError(f"Could not find ISA sample file in {metadata_path}")
         
     # Match columns
-    # In GeneLab, expr_df columns match 'Sample Name'
     expr_cols = list(expr_df.columns)
     sample_names = s_df['Sample Name'].tolist()
     
-    # We must restrict to overlapping samples
     overlap = [c for c in expr_cols if c in sample_names]
     if len(overlap) != len(expr_cols):
         missing = set(expr_cols) - set(overlap)
         print(f"WARNING: some expression columns not in metadata: {missing}")
-        # fail loudly if they completely mismatch
         if len(overlap) == 0:
             raise ValueError(f"CRITICAL MISMATCH: 0 overlapping sample IDs for {study_id}")
             
     expr_df = expr_df[overlap].copy()
     s_df = s_df[s_df['Sample Name'].isin(overlap)].copy()
     
+    # 3. Independent Low-Expression Filter
+    initial_genes = expr_df.shape[0]
+    mean_log2 = expr_df.mean(axis=1)
+    samples_above_1 = (expr_df >= 1.0).sum(axis=1)
+    keep_mask = (mean_log2 >= 1.0) & (samples_above_1 >= 3)
+    expr_df = expr_df[keep_mask]
+    kept_genes = expr_df.shape[0]
+    print(f"Low-expression filter: kept {kept_genes} / {initial_genes} genes (dropped {initial_genes - kept_genes}).")
+    
     # Parse Factors
-    # Find radiation and gravity columns
     rad_col = next((c for c in s_df.columns if 'Ionizing Radiation' in c), None)
     grav_col = next((c for c in s_df.columns if 'Hindlimb Unloading' in c), None)
     
@@ -171,9 +183,7 @@ def harmonize_osdr(
     s_df['radiation'] = s_df[rad_col].apply(parse_rad)
     s_df['microgravity'] = s_df[grav_col].apply(parse_grav)
     
-    # Check counts
     counts = s_df.groupby(['radiation', 'microgravity']).size().to_dict()
-    # (0,0), (1,0), (0,1), (1,1)
     c00 = counts.get((0,0), 0)
     c10 = counts.get((1,0), 0)
     c01 = counts.get((0,1), 0)
@@ -184,8 +194,6 @@ def harmonize_osdr(
         print(f"Mismatch in expected cell sizes (6/6/3/6)! Got {c00}/{c10}/{c01}/{c11}")
         raise ValueError(f"Cell sizes do not match expected 6/6/3/6 for {study_id}")
         
-    # Build meta parquet
-    # Format required: study_id, sample_id, organism, tissue, radiation, microgravity, batch, provenance
     meta_df = pd.DataFrame({
         "study_id": study_id,
         "sample_id": s_df['Sample Name'],
@@ -199,20 +207,16 @@ def harmonize_osdr(
         "provenance": "REAL"
     })
     meta_df = meta_df.set_index('sample_id')
-    meta_df = meta_df.loc[overlap].reset_index() # ensure order matches expr_cols
+    meta_df = meta_df.loc[overlap].reset_index()
     
-    # Gene stats
     n_samples, n_genes = expr_df.shape[1], expr_df.shape[0]
     gene_id_type = "ENSEMBL" if str(expr_df.index[0]).startswith("ENSMUS") else "Unknown"
     
     variances = expr_df.var(axis=1)
     n_const = int((variances == 0).sum())
     
-    # Simple PCA for outliers (using samples as rows)
     from sklearn.decomposition import PCA
-    # Standardize genes (features) for PCA
     X = expr_df.T.values
-    # impute missing for PCA
     if np.isnan(X).any():
         X = np.nan_to_num(X, nan=np.nanmean(X))
     
@@ -235,7 +239,10 @@ def harmonize_osdr(
         "n_per_cell": {str(k): v for k, v in counts.items()},
         "missingness": float(expr_df.isna().mean().mean()),
         "evidence_level": "VALIDATED",
-        "pca_outliers": outliers
+        "pca_outliers": outliers,
+        "variant": counts_file.name if counts_file else "unknown",
+        "genes_kept": kept_genes,
+        "genes_dropped": initial_genes - kept_genes
     }
     
     print("--- QC Report ---")

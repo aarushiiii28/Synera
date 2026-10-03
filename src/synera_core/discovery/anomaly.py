@@ -1,40 +1,38 @@
-"""Multi-stressor compound anomaly detector.
-
-Identifies multivariate environmental anomaly events where multiple stressors
-co-occur beyond univariate statistical extremes.
-"""
-
-from __future__ import annotations
+"""Anomaly detection for sample outlier flagging."""
 
 import numpy as np
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+from sklearn.covariance import MinCovDet
 
-
-def detect_multivariate_outliers(
-    matrix: np.ndarray,
-    threshold_sigma: float = 3.0,
-) -> np.ndarray:
-    """Identify compound outlier events using Mahalanobis distance heuristic.
-
-    Args:
-        matrix: Multi-stressor observation matrix (samples x stressors).
-        threshold_sigma: Critical standard deviation boundary.
-
-    Returns:
-        Boolean mask array of outlier rows.
+def detect_anomalies(X: pd.DataFrame, contamination: float = 0.05) -> dict:
     """
-    if matrix.shape[0] < 2:
-        return np.zeros(matrix.shape[0], dtype=bool)
-
-    mean = np.mean(matrix, axis=0)
-    centered = matrix - mean
-    cov = np.cov(matrix, rowvar=False)
-    # Add regularizer for numerical stability
-    cov_reg = cov + np.eye(cov.shape[0]) * 1e-6
-    inv_cov = np.linalg.pinv(cov_reg)
-    left = np.dot(centered, inv_cov)
-    distances = np.sqrt(np.sum(left * centered, axis=1))
-
-    cutoff = np.median(distances) + threshold_sigma * (
-        np.percentile(distances, 75) - np.percentile(distances, 25)
-    )
-    return distances > cutoff
+    IsolationForest + MinCovDet.
+    """
+    # handle NaNs
+    X_clean = X.fillna(X.median())
+    
+    # IF
+    iso = IsolationForest(contamination=contamination, random_state=42)
+    iso_preds = iso.fit_predict(X_clean)
+    iso_outliers = X.index[iso_preds == -1].tolist()
+    
+    # MCD (requires n_samples > n_features, fallback if not)
+    mcd_outliers = []
+    if X_clean.shape[0] > X_clean.shape[1] + 1:
+        try:
+            mcd = MinCovDet(random_state=42).fit(X_clean)
+            dist = mcd.mahalanobis(X_clean)
+            thresh = np.percentile(dist, 100 * (1 - contamination))
+            mcd_outliers = X.index[dist > thresh].tolist()
+        except:
+            pass
+            
+    # return union
+    union = list(set(iso_outliers + mcd_outliers))
+    
+    return {
+        "iso_outliers": iso_outliers,
+        "mcd_outliers": mcd_outliers,
+        "combined": union
+    }

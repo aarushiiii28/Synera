@@ -1,40 +1,53 @@
-"""Composite confidence score indicator calculation.
+"""Confidence scoring system."""
 
-Combines statistical significance, cross-dataset replication, empirical robustness,
-and cryptographic provenance trust into an aggregate indicator score in [0, 1].
-"""
+import numpy as np
 
-from __future__ import annotations
-
-from synera_core.config import ConfidenceWeightsConfig
-
-
-def calculate_confidence_score(
-    stat_score: float,
-    replication_score: float,
-    robustness_score: float,
-    trust_score: float,
-    weights: ConfidenceWeightsConfig | None = None,
-) -> float:
-    """Calculate composite confidence indicator.
-
-    Args:
-        stat_score: Statistical validity score [0, 1].
-        replication_score: Cross-dataset replication score [0, 1].
-        robustness_score: Resampling/bootstrap stability score [0, 1].
-        trust_score: Cryptographic integrity and provenance score [0, 1].
-        weights: Optional custom weight configuration.
-
-    Returns:
-        Weighted confidence score bounded between 0.0 and 1.0.
+def compute_confidence(
+    q: float,
+    alpha: float,
+    cohens_d: float,
+    ci_excludes_zero: bool,
+    evidence_level: str,
+    replicated: bool,
+    robustness: float,
+    trust: int,
+    weights: dict = None
+) -> dict:
+    """
+    Interpretable composite confidence score (NOT a probability).
     """
     if weights is None:
-        weights = ConfidenceWeightsConfig()
-
-    composite = (
-        weights.stat * max(0.0, min(1.0, stat_score))
-        + weights.replication * max(0.0, min(1.0, replication_score))
-        + weights.robustness * max(0.0, min(1.0, robustness_score))
-        + weights.trust * max(0.0, min(1.0, trust_score))
-    )
-    return round(float(composite), 4)
+        weights = {"stat": 0.4, "rep": 0.4, "rob": 0.2}
+        
+    # stat component
+    q_score = max(0.0, 1.0 - (q / alpha)) if not np.isnan(q) else 0.0
+    d_score = min(abs(cohens_d) / 1.0, 1.0) if not np.isnan(cohens_d) else 0.0
+    ci_score = 1.0 if ci_excludes_zero else 0.0
+    stat_score = (q_score + d_score + ci_score) / 3.0
+    
+    # replication component
+    rep_score = 0.0
+    if replicated:
+        if evidence_level == "INDEPENDENT_REPLICATION":
+            rep_score = 1.0
+        elif evidence_level in ["INTERNAL_REPLICATION", "CROSS_TISSUE_SAME_COHORT"]:
+            rep_score = 0.5
+            
+    # overall
+    score = (stat_score * weights["stat"] + 
+             rep_score * weights["rep"] + 
+             robustness * weights["rob"])
+             
+    if trust == 0:
+        score = 0.0
+        
+    return {
+        "score": score,
+        "components": {
+            "stat": stat_score,
+            "replication": rep_score,
+            "robustness": robustness,
+            "trust": trust
+        },
+        "is_blocked": (trust == 0)
+    }
