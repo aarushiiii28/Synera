@@ -21,12 +21,16 @@
   ],
   "decoys": [
     {
-      "var": "wind",
+      "var": "pm10",
       "effect": -1.0
     },
     {
       "var": "drought_index",
       "effect": -1.0
+    },
+    {
+      "var": "no2",
+      "effect": 1.0
     },
     {
       "var": "uv",
@@ -35,10 +39,6 @@
     {
       "var": "precip",
       "effect": 1.0
-    },
-    {
-      "var": "no2",
-      "effect": -1.0
     }
   ]
 }

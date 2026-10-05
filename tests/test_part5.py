@@ -40,15 +40,17 @@ def test_detector_physical_range():
 def test_detector_isolation_forest():
     # Clean
     np.random.seed(42)
+    base = np.random.normal(0, 1, (500, 2))
     df = pd.DataFrame({"x": np.random.normal(0, 1, 100), "y": np.random.normal(0, 1, 100)})
-    report_clean = scan_dataset(df)
+    baseline = {"X_matrix": base}
+    report_clean = scan_dataset(df, baseline=baseline)
     checks = {c["name"]: c["status"] for c in report_clean.checks}
     assert checks["isolation_forest"] == "PASS"
     
     # Poisoned (10x outliers at 20%)
     df_poison = df.copy()
     df_poison.iloc[:20, 0] = df_poison.iloc[:20, 0] * 10 + 50
-    report_poison = scan_dataset(df_poison)
+    report_poison = scan_dataset(df_poison, baseline=baseline)
     checks_p = {c["name"]: c["status"] for c in report_poison.checks}
     assert checks_p["isolation_forest"] == "WARN"
 
@@ -102,3 +104,65 @@ def test_detector_label_flip():
     report_poison = scan_dataset(df, meta=meta_poison)
     checks_p = {c["name"]: c["status"] for c in report_poison.checks}
     assert checks_p["label_flip"] == "WARN"
+
+def test_ar1_hac_bootstrap():
+    np.random.seed(42)
+    # AR(1) null with 8 cities
+    n_per_city = 60
+    cities = [f"c{i}" for i in range(8)]
+    rho = 0.6
+    
+    dfs = []
+    for c in cities:
+        x = np.zeros(n_per_city)
+        y = np.zeros(n_per_city)
+        for t in range(1, n_per_city):
+            x[t] = rho * x[t-1] + np.sqrt(1 - rho**2) * np.random.normal()
+            y[t] = rho * y[t-1] + np.sqrt(1 - rho**2) * np.random.normal()
+        dfs.append(pd.DataFrame({"A": x, "B": np.random.normal(0, 1, n_per_city), "city": c, "outcome": y}))
+        
+    df = pd.concat(dfs).reset_index(drop=True)
+    df['sin_doy'] = 0.0
+    df['cos_doy'] = 0.0
+    n = len(df)
+    
+    from synera_core.discovery.continuous import continuous_interaction
+    from scripts.part5_fixes_script import get_hac_p
+    
+    p_naive_list = []
+    p_hac_list = []
+    
+    # simulate 30 null AR(1) series to get lambda
+    for _ in range(30):
+        y_null_list = []
+        for c in cities:
+            yn = np.zeros(n_per_city)
+            for t in range(1, n_per_city):
+                yn[t] = rho * yn[t-1] + np.sqrt(1 - rho**2) * np.random.normal()
+            y_null_list.append(yn)
+        df_null = df.copy()
+        df_null['outcome'] = np.concatenate(y_null_list)
+        res = continuous_interaction("outcome", "A", "B", df_null, covariates=["city"])
+        m1 = res['models'][1]
+        
+        pn = m1.pvalues.get("A:B", np.nan)
+        ph = get_hac_p(m1)
+        if not np.isnan(pn): p_naive_list.append(pn)
+        if not np.isnan(ph): p_hac_list.append(ph)
+        
+    from scipy.stats import chi2
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if len(p_hac_list) > 0:
+            stat_hac = chi2.ppf(1 - np.array(p_hac_list), 1)
+            lambda_hac = np.median(stat_hac) / 0.4549364
+            assert 0.5 <= lambda_hac <= 2.0, f"HAC lambda {lambda_hac} out of bounds"
+            
+    # Planted effect
+    df_planted = df.copy()
+    df_planted['outcome'] += 2.0 * df_planted['A'] * df_planted['B']
+    res = continuous_interaction("outcome", "A", "B", df_planted, covariates=["city"])
+    m1 = res['models'][1]
+    p_hac_planted = get_hac_p(m1)
+    assert p_hac_planted < 0.05

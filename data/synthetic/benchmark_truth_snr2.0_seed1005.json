@@ -21,16 +21,8 @@
   ],
   "decoys": [
     {
-      "var": "uv",
-      "effect": -1.0
-    },
-    {
       "var": "no2",
       "effect": -1.0
-    },
-    {
-      "var": "wind",
-      "effect": 1.0
     },
     {
       "var": "pm10",
@@ -39,6 +31,14 @@
     {
       "var": "precip",
       "effect": 1.0
+    },
+    {
+      "var": "wind",
+      "effect": -1.0
+    },
+    {
+      "var": "uv",
+      "effect": -1.0
     }
   ]
 }

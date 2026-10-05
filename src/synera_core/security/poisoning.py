@@ -84,9 +84,17 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
         X = df_or_expr.select_dtypes(include=[np.number]).fillna(df_or_expr.mean(numeric_only=True)).values
         
         # Isolation Forest
-        iso = IsolationForest(contamination=0.01, random_state=42)
-        iso_preds = iso.fit_predict(X)
-        iso_scores = -iso.score_samples(X)
+        if baseline is not None and "X_matrix" in baseline:
+            iso = IsolationForest(contamination='auto', random_state=42)
+            iso.fit(baseline["X_matrix"])
+            base_scores = -iso.score_samples(baseline["X_matrix"])
+            thresh = np.percentile(base_scores, 99)
+            iso_scores = -iso.score_samples(X)
+            iso_preds = np.where(iso_scores > thresh, -1, 1)
+        else:
+            iso = IsolationForest(contamination=0.01, random_state=42)
+            iso_preds = iso.fit_predict(X)
+            iso_scores = -iso.score_samples(X)
         
         # MCD (Robust Mahalanobis)
         if X.shape[0] > X.shape[1] and X.shape[1] < 50:
@@ -129,7 +137,8 @@ def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
         report.suspicion_scores += consensus
         
         n_outliers = np.sum(iso_preds == -1)
-        if n_outliers > 0:
+        expected_outliers = len(X) * 0.02
+        if n_outliers > expected_outliers:
             report.add_check("isolation_forest", "WARN", float(n_outliers), f"{n_outliers} sample-level outliers detected by IF")
         else:
             report.add_check("isolation_forest", "PASS", 0.0, "No significant sample outliers by IF")

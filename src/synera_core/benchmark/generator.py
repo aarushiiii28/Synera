@@ -20,9 +20,16 @@ def generate_benchmark(snr: float = 2.0, rho: float = 0.5, n_per_city: int = 100
     # 1. Load Real Covariates
     env_df = pd.read_parquet(find_repo_root() / "data" / "processed" / "env_panel.parquet")
     
-    # Sample n_per_city per city to ensure balance and sort by date for AR(1)
-    env_df = pd.concat([g.sample(min(n_per_city, len(g)), random_state=seed) for _, g in env_df.groupby("city")])
-    env_df = env_df.sort_values(["city", "date"]).reset_index(drop=True)
+    # Use contiguous windows per city to preserve true AR(1)
+    def get_window(g):
+        g = g.sort_values("date")
+        if n_per_city is None or n_per_city >= len(g) or n_per_city <= 0:
+            return g
+        start_idx = rng.integers(0, len(g) - n_per_city + 1)
+        return g.iloc[start_idx : start_idx + n_per_city]
+        
+    env_df = pd.concat([get_window(g) for _, g in env_df.groupby("city")])
+    env_df = env_df.reset_index(drop=True)
     
     features = ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
     
@@ -50,7 +57,9 @@ def generate_benchmark(snr: float = 2.0, rho: float = 0.5, n_per_city: int = 100
     y += env_df['city'].map(city_effects)
     
     day_of_year = pd.to_datetime(env_df['date']).dt.dayofyear
-    y += np.sin(2 * np.pi * day_of_year / 365) + np.cos(2 * np.pi * day_of_year / 365)
+    env_df['sin_doy'] = np.sin(2 * np.pi * day_of_year / 365)
+    env_df['cos_doy'] = np.cos(2 * np.pi * day_of_year / 365)
+    y += env_df['sin_doy'].values + env_df['cos_doy'].values
     
     # Main effects for the interacting vars
     for var in ["heat_index", "pm25", "rh", "o3"]:

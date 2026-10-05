@@ -65,9 +65,13 @@ def continuous_interaction(
         coef_AB = m1.params.get("A:B", 0.0)
         
         # approximate main effect sign by predicting A=q75, B=0 and A=0, B=q75
-        pred_base = m1.predict(pd.DataFrame({'A':[0], 'B':[0], **{c:data[c].mean() for c in covariates}})).iloc[0]
-        pred_A = m1.predict(pd.DataFrame({'A':[q75_A], 'B':[0], **{c:data[c].mean() for c in covariates}})).iloc[0]
-        pred_B = m1.predict(pd.DataFrame({'A':[0], 'B':[q75_B], **{c:data[c].mean() for c in covariates}})).iloc[0]
+        base_covs = {}
+        for c in covariates:
+            base_covs[c] = data[c].mean() if pd.api.types.is_numeric_dtype(data[c]) else data[c].mode()[0]
+            
+        pred_base = m1.predict(pd.DataFrame({'A':[0], 'B':[0], **base_covs})).iloc[0]
+        pred_A = m1.predict(pd.DataFrame({'A':[q75_A], 'B':[0], **base_covs})).iloc[0]
+        pred_B = m1.predict(pd.DataFrame({'A':[0], 'B':[q75_B], **base_covs})).iloc[0]
         
         main_eff = (pred_A - pred_base) + (pred_B - pred_base)
         
@@ -84,7 +88,10 @@ def continuous_interaction(
     AA, BB = np.meshgrid(a_grid, b_grid)
     grid_df = pd.DataFrame({'A': AA.flatten(), 'B': BB.flatten()})
     for c in covariates:
-        grid_df[c] = data[c].mean()
+        if pd.api.types.is_numeric_dtype(data[c]):
+            grid_df[c] = data[c].mean()
+        else:
+            grid_df[c] = data[c].mode()[0]
         
     z_additive = m0.predict(grid_df).values.reshape(40, 40)
     z_full = m2.predict(grid_df).values.reshape(40, 40)

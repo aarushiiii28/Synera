@@ -16,23 +16,41 @@ def standardize(arr):
 
 def get_hac_p(model, term="A:B"):
     try:
-        hac = model.get_robustcov_results(cov_type='HAC', maxlags=1)
-        return hac.pvalues.get(term, 1.0)
-    except:
-        return 1.0
+        # Use cluster-robust standard errors grouped by city for panel data
+        cluster_hac = model.get_robustcov_results(cov_type='cluster', groups=model.model.data.frame['city'])
+        if isinstance(cluster_hac.pvalues, np.ndarray):
+            idx = cluster_hac.model.exog_names.index(term)
+            return cluster_hac.pvalues[idx]
+        return cluster_hac.pvalues.get(term, np.nan)
+    except Exception as e:
+        print("HAC Error:", e)
+        return np.nan
 
-def moving_block_bootstrap_p(df, v1, v2, model, n_boot=100):
+def moving_block_bootstrap_p(df, v1, v2, model, n_boot=100, block_size=3):
     boot_stats = []
     cities = df['city'].unique()
     for _ in range(n_boot):
-        boot_df = pd.concat([df[df['city']==c].sample(frac=1.0, replace=True) for c in cities])
+        blocks = []
+        for c in cities:
+            c_df = df[df['city'] == c]
+            n_c = len(c_df)
+            # Sample blocks of size block_size
+            for i in range(0, n_c, block_size):
+                start = np.random.randint(0, max(1, n_c - block_size + 1))
+                blocks.append(c_df.iloc[start:start+block_size])
+        boot_df = pd.concat(blocks).iloc[:len(df)]
+        boot_df = boot_df.rename(columns={v1: 'A', v2: 'B'})
         try:
-            m = smf.ols(model.formula, data=boot_df).fit()
-            boot_stats.append(m.f_pvalue) 
-        except:
+            m = smf.ols(model.model.formula, data=boot_df).fit()
+            pval = m.pvalues.get("A:B", np.nan)
+            if not np.isnan(pval): boot_stats.append(pval)
+        except Exception as e:
+            print("Bootstrap Error:", e)
             pass
-    if not boot_stats: return 1.0
-    return np.mean(np.array(boot_stats) < model.f_pvalue)
+    if not boot_stats: return np.nan
+    orig_p = model.pvalues.get("A:B", np.nan)
+    if np.isnan(orig_p): return np.nan
+    return np.mean(np.array(boot_stats) < orig_p)
 
 def block_1():
     print("\\n=== 1. UNITS AUDIT ===")
@@ -67,8 +85,8 @@ def block_1():
         
         preds = {}
         for v1, v2 in pairs:
-            res = continuous_interaction("outcome", v1, v2, df)
-            p = min(res['p_bilinear'], res['p_nonlinear']) if not np.isnan(res['p_bilinear']) and not np.isnan(res['p_nonlinear']) else 1.0
+            res = continuous_interaction("outcome", v1, v2, df, covariates=["city", "sin_doy", "cos_doy"])
+            p = min(res['p_bilinear'], res['p_nonlinear']) if not np.isnan(res['p_bilinear']) and not np.isnan(res['p_nonlinear']) else np.nan
             eff = np.max(np.abs(res['z_gap'])) 
             preds[(v1, v2)] = (p, eff)
             
@@ -88,7 +106,7 @@ def block_1():
 
 def block_2():
     print("\\n=== 2. EXPLAIN n=20 PER CITY VS 518 DAYS ===")
-    print("The real env_panel has 518 days. The benchmark generates synthetic datasets by randomly sampling 'n_per_city' rows (e.g. 20 or 50) per city from the cleaned real covariate rows. Thus, a run uses exactly n_per_city * 8 total rows, preserving real correlations but controlling the sample size for power tests.")
+    print("The real env_panel has 518 days. The benchmark generates synthetic datasets by selecting a random contiguous window of 'n_per_city' days (e.g. 20 or 50) per city from the cleaned real covariate rows. Thus, a run uses exactly n_per_city * 8 total rows, preserving real correlations AND temporal AR(1) structure while controlling the sample size for power tests.")
 
 def block_3_4():
     print("\\n=== 3 & 4. FULL STACK STAGES & SCALE RUN (20 seeds x 3 SNR) ===")
@@ -138,8 +156,8 @@ def block_3_4():
                 
             res_dict = {}
             for v1, v2 in pairs:
-                res = continuous_interaction("outcome", v1, v2, df)
-                p_naive = min(res['p_bilinear'], res['p_nonlinear']) if not np.isnan(res['p_bilinear']) else 1.0
+                res = continuous_interaction("outcome", v1, v2, df, covariates=["city", "sin_doy", "cos_doy"])
+                p_naive = min(res['p_bilinear'], res['p_nonlinear']) if not np.isnan(res['p_bilinear']) else np.nan
                 
                 # HAC
                 m1 = res['models'][1]
@@ -148,10 +166,23 @@ def block_3_4():
                 
                 # if snr==1.0, save null distribution from decoys
                 if snr == 1.0 and (v1, v2) not in true_pairs:
-                    null_p_naive.append(p_naive)
-                    null_p_hac.append(p_hac)
                     if len(null_p_boot) < 100:
-                        null_p_boot.append(moving_block_bootstrap_p(df, v1, v2, res['models'][0], 50))
+                        null_p_naive.append(p_naive)
+                        null_p_hac.append(p_hac)
+                        boot_p = moving_block_bootstrap_p(df, v1, v2, res['models'][1], 50, block_size=max(1, 30 // 5))
+                        null_p_boot.append(boot_p)
+                        
+                        if len(null_p_boot) == 10:
+                            print("\\nDEBUG NULL SIMULATION (First 10 p-values):")
+                            print("Naive: ", [f"{p:.3f}" if not np.isnan(p) else "NaN" for p in null_p_naive[:10]])
+                            print("HAC (Cluster): ", [f"{p:.3f}" if not np.isnan(p) else "NaN" for p in null_p_hac[:10]])
+                            print("Block Boot: ", [f"{p:.3f}" if not np.isnan(p) else "NaN" for p in null_p_boot[:10]])
+                            nans_naive = sum(np.isnan(null_p_naive[:10]))
+                            nans_hac = sum(np.isnan(null_p_hac[:10]))
+                            nans_boot = sum(np.isnan(null_p_boot[:10]))
+                            print(f"NaN count (first 10) -> Naive: {nans_naive}, HAC: {nans_hac}, Boot: {nans_boot}")
+                            print("NaNs are now handled by np.nan and dropped in bh_fdr, they are NOT converted to 1.0.")
+                            print(f"HAC cov_type='cluster' uses 'city' groups. Bootstrap block_size=6 vs n_per_city=30.\\n")
                 
                 eff = np.max(np.abs(res['z_gap']))
                 res_dict[(v1, v2)] = {

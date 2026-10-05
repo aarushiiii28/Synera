@@ -25,20 +25,20 @@
       "effect": -1.0
     },
     {
-      "var": "wind",
-      "effect": -1.0
-    },
-    {
-      "var": "pm10",
+      "var": "uv",
       "effect": 1.0
     },
     {
-      "var": "uv",
+      "var": "drought_index",
       "effect": -1.0
     },
     {
       "var": "precip",
-      "effect": -1.0
+      "effect": 1.0
+    },
+    {
+      "var": "wind",
+      "effect": 1.0
     }
   ]
 }

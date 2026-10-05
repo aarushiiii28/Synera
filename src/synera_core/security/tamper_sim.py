@@ -41,6 +41,15 @@ def simulate_attack(mode: str, data_path: Path, meta_path: Path = None) -> dict:
         if len(cols) > 0:
             df_tampered[cols[0]] = df_tampered[cols[0]] * 1.8 + 32
             
+    elif mode == "subtle_edit":
+        cols = df_tampered.select_dtypes(include=[np.number]).columns
+        if len(cols) > 0:
+            # Edit 10% of cells by 0.3 SD
+            n_poison = max(1, int(len(df_tampered) * 0.10))
+            idx = np.random.choice(df_tampered.index, n_poison, replace=False)
+            sd = df_tampered[cols[0]].std()
+            df_tampered.loc[idx, cols[0]] = df_tampered.loc[idx, cols[0]] + 0.3 * sd
+            
     elif mode == "poison_labels" and meta is not None:
         meta_tampered = meta.copy()
         target_col = [c for c in meta.columns if meta[c].nunique() == 2]
