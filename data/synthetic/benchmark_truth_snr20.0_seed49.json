@@ -1,0 +1,44 @@
+{
+  "interactions": [
+    {
+      "var1": "heat_index",
+      "var2": "pm25",
+      "type": "SYNERGISTIC",
+      "effect": 1.5
+    },
+    {
+      "var1": "heat_index",
+      "var2": "rh",
+      "type": "ANTAGONISTIC",
+      "effect": -1.5
+    },
+    {
+      "var1": "o3",
+      "var2": "heat_index",
+      "type": "NONLINEAR",
+      "effect": 2.0
+    }
+  ],
+  "decoys": [
+    {
+      "var": "uv",
+      "effect": 1.0
+    },
+    {
+      "var": "wind",
+      "effect": -1.0
+    },
+    {
+      "var": "pm10",
+      "effect": -1.0
+    },
+    {
+      "var": "drought_index",
+      "effect": 1.0
+    },
+    {
+      "var": "precip",
+      "effect": -1.0
+    }
+  ]
+}
