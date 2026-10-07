@@ -14,7 +14,7 @@ Team: **PeakyGliders, Guru Nanak Dev University**
 | 3 | Data Ingestion, Harmonization & Manifest Pipeline | COMPLETED (Blocked) | NASA OSDR omics, meteorological data, synthetic benchmark generation |
 | 4 | AI Discovery Engine | COMPLETED | Interaction discovery, LightGBM interaction constraints, neural embeddings, anomaly detection |
 | 5 | Scientific Validation & Statistical Rigor | COMPLETED | Benjamini-Hochberg FDR, empirical Bayes moderation, block bootstrap, replication tests |
-| 6 | Core Pipeline Orchestration & FastAPI Backend | PENDING | End-to-end pipeline execution, SQLModel persistence, SSE streaming, REST API |
+| 6 | Core Pipeline Orchestration & FastAPI Backend | COMPLETED | End-to-end pipeline execution, SQLModel persistence, SSE streaming, REST API |
 | 7 | Web Intelligence Platform Frontend | PENDING | React 18 + Vite + Tailwind + Three.js + Framer Motion dashboard |
 | 8 | Analytical Notebooks & Case Studies | PENDING | 9 thin reproducible research notebooks running synera_core |
 | 9 | Containerization, Demo Harness & Final Verification | PENDING | Docker Compose, end-to-end demo script, final verification |
@@ -153,23 +153,19 @@ Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at 
     - HAC Lambda: **1.783** (Greatly improved, cluster-robust standard errors grouped by city)
     - Block-Bootstrap Lambda: **0.604** (Slightly conservative)
 
-### Part 5 Final Round 4 Results (FDR control under autocorrelation: 1.000 Bootstrap Lambda)
+### Part 5 Final Round 4 Results (Benchmark Performance on AR(1) Panel)
 
 1. **Model Specification & Null Calibration (518-day AR(1) Panel)**:
-   - Naive Lambda (No Covariates): **38.200**
-   - Naive Lambda (With City+Seasonality): **35.258**
-   - HAC Lambda (With City+Seasonality): **11.955** (Maxlags median: 3)
-   - Bootstrap Lambda (With City+Seasonality): **1.000** (Block size median: 3)
-   *Conclusion:* On a full 518-day panel with strong autocorrelation, naive models and even Newey-West HAC fail to control Type I error (producing lambdas > 11). Moving-block bootstrap perfectly calibrates the null distribution ($\lambda = 1.000$).
+   - Naive Lambda (No Covariates): **38.200** (median), range: not computed
+   - Naive Lambda (With City+Seasonality): **35.258** (median), range: not computed
+   - HAC Lambda (With City+Seasonality): **11.955** (median), range: not computed
+   - Bootstrap Lambda (With City+Seasonality): **1.000** (median), range: not computed
 
 2. **FDR Decomposition & Sanity Ladder (50 Seeds)**:
-   - **SNR 20.0**: Recall: **100%** (150/150). Discoveries: True **150**, Proxy-of-Planted **505**, Decoys **777**.
-     - Strict FDR: **83.8%**, Proxy-aware FDR: **54.3%**
-   - **SNR 5.0**: Recall: **100%** (150/150). Discoveries: True **150**, Proxy-of-Planted **500**, Decoys **766**.
-     - Strict FDR: **83.6%**, Proxy-aware FDR: **54.1%**
-   - **SNR 1.0**: Recall: **100%** (150/150). Discoveries: True **150**, Proxy-of-Planted **477**, Decoys **638**.
-     - Strict FDR: **80.9%**, Proxy-aware FDR: **50.4%**
-   *Decomposition Insight:* Because the Sanity Ladder utilizes the `p_hac` values (which still exhibit $\lambda \approx 12$), over half of the discoveries are decoys, and another large portion are proxy variables (strongly correlated to the planted truth). The 100% recall demonstrates that when the effect is present, the model finds it, but FDR is bottlenecked by the inflated HAC p-values on this specific highly-autocorrelated time series.
+   - **SNR 20.0**: Recall: **100%**. Strict FDR after BH: **83.8%**. Proxy-aware FDR: **54.3%**.
+   - **SNR 5.0**: Recall: **100%**. Strict FDR after BH: **83.6%**. Proxy-aware FDR: **54.1%**.
+   - **SNR 1.0**: Recall: **100%**. Strict FDR after BH: **80.9%**. Proxy-aware FDR: **50.4%**.
+   *Limitation:* FDR is not controlled in the benchmark: strict FDR exceeds 80% at all SNR levels; likely cause: HAC p-values are heavily inflated under severe AR(1) panel autocorrelation (median lambda 11.955), which causes many decoys and proxies to bypass the BH-FDR threshold.
 
 3. **Moderation Sweep (2-6 SDs, 6/6/3/6 Factorial)**:
    - Size 3.0 SDs: NO Mod: Power = **0.412**, Fixed df=4: **0.339**, Est df: **0.387**. FDR controlled at ~4.5%.
@@ -181,3 +177,18 @@ Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at 
    - **subtle_edit Mode** (10% cells perturbed by +0.3 SD): Detected by `hash` (30/30), `physical_range` (30/30). Bypassed Isolation Forest (0/30) and Distribution Drift (0/30).
    - **row_edit Mode** (5% cells replaced with Max*10): Detected heavily by `hash` (30/30), `physical_range` (30/30), `isolation_forest` (30/30), and Distribution Drift (0/30).
 
+---
+
+## Part 6 Log: Core Pipeline Orchestration & FastAPI Backend
+
+### Completed in Part 6
+- **6.1 API Contract**: Documented exactly matching JSON endpoints in `docs/API_CONTRACT.md`.
+- **6.2 DB Architecture**: Created SQLModel mapping for `Dataset`, `Run`, `RunEvent`, `Finding`, `SecurityReport`, `ExperimentSummary` and migrations backed by `artifacts/synera.db`. Seeded DB successfully.
+- **6.3 Orchestrator**: Built `PipelineOrchestrator` to run 9 steps via threading and stream SSE events.
+- **6.4 FastAPI Router**: Built fully functional router with OpenAPI tags, CORS, SSE, and validations (`backend/app/api/router.py`).
+- **6.5 Risk Assessment**: Built caching Open-Meteo forecaster and correctly implemented the `simulated_only` honesty gate ensuring mock Track B data cannot be presented as real verified findings.
+- **6.6 Addendum Applied**: Part 5 headline corrected, `benchmark.json` restricted to measured numbers without rounding up.
+- **6.7 Tests**: 56 total tests passed locally, including backend coverage.
+
+### Blocked Items
+- *None.*
