@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --void: #050D18;
+    --abyss: #081B2E;
+    --hull: #0D2540;
+    --hull-2: #123152;
+    --line: rgba(110, 190, 255, 0.16);
+    --line-strong: rgba(110, 190, 255, 0.34);
+    --text: #E8F1FA;
+    --muted: #7F98B2;
+    --faint: #4B6480;
+    
+    --signal: #16B5FF;
+    --biosphere: #6FD65B;
+    --solar: #FFB547;
+    --alert: #FF4D5E;
+    --teal: #19E3B1;
+  }
+  
+  body {
+    @apply bg-[var(--abyss)] text-[var(--text)] font-sans antialiased;
+    background-image: 
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 48px 48px;
+    background-position: center top;
+  }
+}
