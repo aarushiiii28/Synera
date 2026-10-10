@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './Layout';
 import { DesignSystem } from './pages/DesignSystem';
+import { BootSequence } from './BootSequence';
 
 const queryClient = new QueryClient();
 
@@ -32,10 +33,15 @@ function Loader() {
 }
 
 export function App() {
+  const [booted, setBooted] = React.useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Suspense fallback={<Loader />}>
+      {!booted ? (
+        <BootSequence onComplete={() => setBooted(true)} />
+      ) : (
+        <BrowserRouter>
+          <Suspense fallback={<Loader />}>
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Observatory />} />
@@ -49,7 +55,8 @@ export function App() {
             </Route>
           </Routes>
         </Suspense>
-      </BrowserRouter>
+        </BrowserRouter>
+      )}
     </QueryClientProvider>
   );
 }

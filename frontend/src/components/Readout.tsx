@@ -1,24 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface ReadoutProps {
   value: number | string;
   caption: string;
+  unit?: string;
   delta?: string;
   format?: 'int' | 'float' | 'percent';
 }
 
-export function Readout({ value, caption, delta, format = 'int' }: ReadoutProps) {
-  const reducedMotion = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
-  
-  const [displayValue, setDisplayValue] = useState<number | string>(
-    typeof value === 'number' && !reducedMotion ? 0 : value
-  );
+export function Readout({ value, caption, unit, delta, format = 'int' }: ReadoutProps) {
+  const [displayValue, setDisplayValue] = useState<number | string>(value);
+  const mounted = useRef(false);
 
   useEffect(() => {
-    if (typeof value !== 'number') return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof value !== 'number' || reducedMotion || mounted.current) {
+      setDisplayValue(value);
+      mounted.current = true;
+      return;
+    }
     
-    // Simple count-up animation
-    const duration = 800; // ms
+    // Animate only on first mount
+    mounted.current = true;
+    const duration = 800;
     const startTime = performance.now();
     
     const tick = (now: number) => {
@@ -36,22 +40,25 @@ export function Readout({ value, caption, delta, format = 'int' }: ReadoutProps)
       }
     };
     
-    if (!reducedMotion) {
-      requestAnimationFrame(tick);
-    }
+    requestAnimationFrame(tick);
   }, [value]);
 
   const formatted = typeof displayValue === 'number' 
-    ? (format === 'float' ? displayValue.toFixed(3) : format === 'percent' ? `${Math.round(displayValue * 100)}%` : Math.round(displayValue).toString())
+    ? (format === 'float' ? displayValue.toFixed(3) : format === 'percent' ? `${Math.round(displayValue * 100)}` : Math.round(displayValue).toString())
     : displayValue;
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[28px] text-text">{formatted}</span>
-        {delta && <span className="font-mono text-[10px] text-signal">{delta}</span>}
+    <div className="flex flex-col relative w-fit">
+      <div className="flex items-baseline gap-2 pb-1 border-b border-line">
+        <span className="font-mono text-4xl text-text leading-none">{formatted}</span>
+        {(unit || format === 'percent') && (
+          <span className="font-sans text-sm text-muted">{unit || '%'}</span>
+        )}
+        {delta && <span className="font-mono text-[10px] text-signal ml-2">{delta}</span>}
       </div>
-      <span className="font-sans text-[10px] uppercase tracking-widest text-muted mt-1">{caption}</span>
+      <span className="font-sans text-[10px] uppercase tracking-widest text-muted mt-2">
+        {caption}
+      </span>
     </div>
   );
 }

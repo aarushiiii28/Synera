@@ -208,6 +208,14 @@ Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at 
 - **7.4 App Routing & Wiring**: Initialized React Router structure with TanStack Query. Created 7 empty placeholder route implementations matching the design shell.
 - **7.5 Playwright Integration**: Utilized Playwright to capture screenshots of the clean build (`/_design` and shell layouts). Images stored in `docs/screens/`.
 
+### Completed in Part 7B (Visual Identity Overhaul)
+- **Identity**: SVG `<Logo>` and `<Wordmark>` created using `Instrument Serif` for emphasis.
+- **Atmosphere**: Replaced the generic flat background with a `<Stars>` background and a 3D orthographic `<Graticule>`. 
+- **Typography & Panels**: Replaced identical boxed components with variable treatments (`bracketed`, `ruled`, `inset`, `bare`), adopting `Instrument Serif italic` for editorial accent text in hero layouts. `<Readout>` units re-styled with baseline 1px hairlines and thin labels.
+- **Transitions**: Horizontal scan line transitions implemented via `framer-motion`, while respecting `prefers-reduced-motion`.
+- **Boot Sequence**: Hardware-themed startup sequence in `<BootSequence>` before layout render.
+- **Observatory Hero**: Replaced placeholder page with a dynamic 3D globe (react-three-fiber sampling `land.geojson`) bleeding off the screen edge and styled stressor beams converging to a cell node.
+
 ### Blocked Items
 - *None.*
 

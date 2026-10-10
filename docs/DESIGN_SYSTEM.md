@@ -47,3 +47,11 @@ The SYNERA frontend must not look like a generic B2B SaaS dashboard. It draws in
 - Top: TelemetryBar.
 - Canvas: Graticule background pattern, asymmetrical layout.
 - The `/_design` route renders all components in all states for visual review.
+
+## New Layout Rules (Part 7B)
+- **BANNED**: Identical bordered boxes repeated across a page, mono-uppercase for every label, flat single-colour backgrounds.
+- **Graticule**: Use an orthographic projection graticule + seeded starfield for background depth.
+- **Typography**: `Instrument Serif italic` is the sole accent face for editorial emphasis. Never use for data or UI labels.
+- **Panels**: Use open space, direct annotation, and hairline rules. `<Panel>` variants include `bracketed`, `ruled`, `inset`, and `bare`.
+- **Readout**: Features 1px baseline rules, larger tabular numerals, and thin unit labels. Animate (count-up) on mount only.
+- **Transitions**: Horizontal scan line sweeps with staggered fade-ups. Respect `prefers-reduced-motion` for all ambient animations (globe, graticule rotate, pulses).

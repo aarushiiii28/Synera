@@ -15,6 +15,7 @@ export function DesignSystem() {
       
       <div className="grid grid-cols-2 gap-8">
         <Panel indexLabel="01 / PANELS & READOUTS" provenance="REAL">
+          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
           <div className="flex gap-12 mt-4">
             <Readout value={12000} caption="FEATURES TESTED" />
             <Readout value={0.523} format="float" caption="MAX EFFECT" delta="+0.12" />
@@ -23,6 +24,7 @@ export function DesignSystem() {
         </Panel>
 
         <Panel indexLabel="02 / STATUS CHIPS">
+          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
           <div className="flex flex-col gap-4 mt-4">
             <StatusChip status="CANDIDATE" />
             <StatusChip status="VALIDATED" />
@@ -33,13 +35,15 @@ export function DesignSystem() {
         </Panel>
 
         <Panel indexLabel="03 / HASH RING">
+          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
           <div className="mt-4 flex gap-8 items-center">
             <HashRing hash={dummyHash} size={64} />
-            <HashRing hash="a1b2c3d4e5f6g7h8a1b2c3d4e5f6g7h8a1b2c3d4e5f6g7h8a1b2c3d4e5f6g7h8" size={120} />
+            <HashRing hash="b6589fc6ab0dc82cf12099d1c2d40ab994e8410cceeb868019a86a6358db3e84" size={120} />
           </div>
         </Panel>
 
         <Panel indexLabel="04 / PROGRESS & CAVEAT" provenance="SIMULATED">
+          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
           <div className="mt-4 flex flex-col gap-8">
             <div className="flex items-center gap-8">
               <OrbitProgress size={80} progress={0.45} />
