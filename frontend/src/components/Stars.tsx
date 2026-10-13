@@ -4,12 +4,17 @@ export function Stars() {
   const [stars, setStars] = React.useState<{x: number, y: number, size: number, opacity: number}[]>([]);
 
   React.useEffect(() => {
+    let seed = 1337;
+    const prng = () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStars(Array.from({ length: 150 }).map(() => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 1.5 + 0.5,
-      opacity: Math.random() * 0.5 + 0.1
+      x: prng() * 100,
+      y: prng() * 100,
+      size: prng() * 1.5 + 0.5,
+      opacity: prng() * 0.5 + 0.1
     })));
   }, []);
 

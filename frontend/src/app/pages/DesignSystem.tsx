@@ -7,7 +7,7 @@ import { OrbitProgress } from '../../components/OrbitProgress';
 import { Caveat } from '../../components/Caveat';
 
 export function DesignSystem() {
-  const dummyHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+  const sampleZeroHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
   
   return (
     <div className="p-8 pb-32">
@@ -37,7 +37,7 @@ export function DesignSystem() {
         <Panel indexLabel="03 / HASH RING">
           <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
           <div className="mt-4 flex gap-8 items-center">
-            <HashRing hash={dummyHash} size={64} />
+            <HashRing hash={sampleZeroHash} size={64} />
             <HashRing hash="b6589fc6ab0dc82cf12099d1c2d40ab994e8410cceeb868019a86a6358db3e84" size={120} />
           </div>
         </Panel>

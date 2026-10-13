@@ -36,3 +36,6 @@ htmlcov/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Scratch directories
+scratch/

@@ -11,6 +11,7 @@ const queryClient = new QueryClient();
 const Observatory = lazy(() => import('./pages/Observatory').then(m => ({ default: m.Observatory })));
 const Discovery = lazy(() => import('./pages/Discovery').then(m => ({ default: m.Discovery })));
 const Findings = lazy(() => import('./pages/Findings').then(m => ({ default: m.Findings })));
+const Dossier = lazy(() => import('./pages/Dossier').then(m => ({ default: m.Dossier })));
 const SpaceBiology = lazy(() => import('./pages/SpaceBiology').then(m => ({ default: m.SpaceBiology })));
 const TrustCenter = lazy(() => import('./pages/TrustCenter').then(m => ({ default: m.TrustCenter })));
 const Benchmark = lazy(() => import('./pages/Benchmark').then(m => ({ default: m.Benchmark })));
@@ -47,6 +48,7 @@ export function App() {
               <Route index element={<Observatory />} />
               <Route path="discovery" element={<Discovery />} />
               <Route path="findings" element={<Findings />} />
+              <Route path="findings/:id" element={<Dossier />} />
               <Route path="space-biology" element={<SpaceBiology />} />
               <Route path="trust" element={<TrustCenter />} />
               <Route path="benchmark" element={<Benchmark />} />

@@ -2,7 +2,7 @@ import os
 from sqlmodel import SQLModel, create_engine, Session, select
 from backend.app.db.models import SchemaVersion
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
 DB_PATH = os.path.join(ROOT_DIR, "artifacts", "synera.db")
 os.makedirs(os.path.join(ROOT_DIR, "artifacts"), exist_ok=True)
 sqlite_url = f"sqlite:///{DB_PATH}"

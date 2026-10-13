@@ -48,6 +48,12 @@ export interface FindingsResponse {
 export interface SpaceBiologyOverview {
   studies: number;
   samples_total: number;
+  design_2x2?: {
+    sham_ground: number;
+    rad_ground: number;
+    sham_microg: number;
+    rad_microg: number;
+  };
   interaction_counts: Record<string, number>;
 }
 
@@ -143,6 +149,46 @@ export async function simulateTamper(payload: Record<string, unknown>) {
 
 export async function fetchBenchmarkResults() {
   const r = await fetch(`${API_BASE}/benchmark/results`);
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function fetchLedgerBlocks() {
+  const r = await fetch(`${API_BASE}/ledger/blocks`);
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function verifyLedger() {
+  const r = await fetch(`${API_BASE}/ledger/verify`);
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function postRun(payload: any) {
+  const r = await fetch(`${API_BASE}/runs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function fetchInteractionMatrix(datasetId: string) {
+  const r = await fetch(`${API_BASE}/interactions/matrix?dataset_id=${encodeURIComponent(datasetId)}`);
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function fetchInteractionNetwork(datasetId: string) {
+  const r = await fetch(`${API_BASE}/interactions/network?dataset_id=${encodeURIComponent(datasetId)}`);
+  if (!r.ok) throw new Error('API down');
+  return r.json();
+}
+
+export async function fetchFindingSurface(findingId: string) {
+  const r = await fetch(`${API_BASE}/findings/${encodeURIComponent(findingId)}/surface`);
   if (!r.ok) throw new Error('API down');
   return r.json();
 }

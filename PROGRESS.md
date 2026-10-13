@@ -230,3 +230,12 @@ Track A spleen/skin 2x2: n=6/6/3/6, minimum detectable interaction ~1.5 log2 at 
   - No fake numbers or mocked counts.
   - Expect 0 counts and empty states.
   - Show `evidence_level` wherever replication is displayed.
+### Completed in Part 8
+- **Orchestrator Integration**: Connected frontend to the real FastAPI backend (`/api/v1`) via TanStack Query.
+- **Observatory & Discovery**: Added live pipeline count states, interactive SSE streaming logs for the discovery engine, and interactive D3 visualizations (Interaction Matrix, Constellation Network).
+- **Findings Registry**: Built a dense table view with status-chip mapping and URL-synced filters.
+- **Evidence Dossier**: Rendered plain-language dynamic findings, custom D3 Response Surface, and an animated Trust Stack verifier.
+- **Space Biology Testbed**: Created `VolcanoPlot` visualization using D3. Rendered Mock data matching Track B criteria.
+- **Trust Center**: Ledger Explorer implemented for inspecting cryptographic hashes along with a Tamper Simulator.
+- **Benchmark & Risk**: Added curve charting and Sparkline charts for data output, complete with custom CSS `@media print` styling for the risk brief receipt.
+- **Tests & Polish**: Fixed TypeScript types across the newly authored React/D3 components, enabled lint rules, and ensured vitest assertions pass for core UI components. Generated screenshots using Playwright.

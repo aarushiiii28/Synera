@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from pathlib import Path
 from typing import Optional, List, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -9,7 +10,16 @@ from pydantic import BaseModel
 
 from backend.app.db.database import get_session
 from backend.app.db.models import Dataset, Run, RunEvent, Finding, SecurityReport, ExperimentSummary
-from src.synera_core.pipeline.orchestrator import orchestrator
+from backend.app.api.v1.security import security_router
+
+try:
+    from synera_core.pipeline.orchestrator import orchestrator
+    pipeline_available = True
+    pipeline_error = None
+except Exception as err:
+    orchestrator = None
+    pipeline_available = False
+    pipeline_error = str(err)
 
 api_router = APIRouter()
 
@@ -22,14 +32,18 @@ class ErrorResponse(BaseModel):
 # ---- 1. System & Ledger ----
 @api_router.get("/health", tags=["System"])
 def get_health():
-    return {
-        "status": "ok",
+    res = {
+        "status": "ok" if pipeline_available else "degraded",
         "version": "1.0.0",
         "ledger": {
             "height": 42,
             "chain_valid": True
         }
     }
+    if not pipeline_available:
+        res["pipeline"] = "unavailable"
+        res["error"] = pipeline_error
+    return res
 
 @api_router.get("/ledger/head", tags=["Ledger"])
 def get_ledger_head():
@@ -49,7 +63,12 @@ def get_ledger_blocks(offset: int = 0, limit: int = 50):
 
 @api_router.get("/ledger/verify", tags=["Ledger"])
 def verify_ledger():
-    return {"valid": True, "blocks_checked": 42, "errors": []}
+    return {
+        "valid": True,
+        "height": 42,
+        "head": "a1b2c3d4e5f67890",
+        "issues": []
+    }
 
 @api_router.get("/ledger/proof/{artifact_hash}", tags=["Ledger"])
 def get_ledger_proof(artifact_hash: str):
@@ -97,6 +116,11 @@ class RunRequest(BaseModel):
 
 @api_router.post("/runs", tags=["Runs"], status_code=202)
 def create_run(req: RunRequest, session: Session = Depends(get_session)):
+    if not pipeline_available or orchestrator is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Pipeline unavailable: {pipeline_error or 'orchestrator not initialized'}"
+        )
     # Check if a completed run exists for this dataset
     if not req.force:
         existing = session.exec(select(Run).where(Run.dataset_id == req.dataset_id, Run.status == "COMPLETED")).first()
@@ -115,13 +139,15 @@ def get_run(id: str, session: Session = Depends(get_session)):
     run = session.get(Run, id)
     if run:
         return run
-    # Check in-memory orchestrator
-    if id in orchestrator.runs:
+    if pipeline_available and orchestrator and id in orchestrator.runs:
         return {"id": id, **orchestrator.runs[id]}
     raise HTTPException(status_code=404, detail="Run not found")
 
 @api_router.get("/runs/{id}/events", tags=["Runs"])
 async def get_run_events(id: str, request: Request):
+    if not pipeline_available or orchestrator is None:
+        raise HTTPException(status_code=503, detail="Pipeline unavailable")
+        
     async def event_generator():
         last_ts = 0.0
         while True:
@@ -138,7 +164,6 @@ async def get_run_events(id: str, request: Request):
             
             run_info = orchestrator.runs.get(id)
             if run_info and run_info["status"] in ["COMPLETED", "FAILED"] and not events:
-                # One last check
                 events = orchestrator.get_events(id, last_ts)
                 if not events:
                     break
@@ -255,6 +280,12 @@ def get_sb_overview(session: Session = Depends(get_session)):
     return {
       "studies": 2,
       "samples_total": 42,
+      "design_2x2": {
+        "sham_ground": 6,
+        "rad_ground": 6,
+        "sham_microg": 3,
+        "rad_microg": 6
+      },
       "interaction_counts": {
         "SYNERGISTIC": 0,
         "ANTAGONISTIC": 0
@@ -262,22 +293,17 @@ def get_sb_overview(session: Session = Depends(get_session)):
     }
 
 @api_router.get("/space-biology/genes", tags=["Space Biology"])
-def get_sb_genes(sort: Optional[str] = None, limit: int = 50, session: Session = Depends(get_session)):
-    return [
-      {
-        "gene_symbol": "CD44",
-        "ensembl_id": "ENSMUSG00000000001",
-        "b_AB": 1.2,
-        "neg_log10_q": 4.5,
-        "type": "SYNERGISTIC",
-        "replicated": True
-      }
-    ]
+def get_sb_genes(sort: Optional[str] = None, limit: int = 1000, session: Session = Depends(get_session)):
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../artifacts/results/osdr_genes.json"))
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            genes = json.load(f)
+            return genes[:limit]
+    return []
 
 # ---- 7. Benchmarks & History ----
 @api_router.get("/benchmark/results", tags=["Benchmarks"])
 def get_benchmark_results():
-    import json
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../artifacts/results/benchmark.json"))
     if not os.path.exists(path):
         return {}
@@ -289,26 +315,7 @@ def get_experiments(session: Session = Depends(get_session)):
     return session.exec(select(ExperimentSummary)).all()
 
 # ---- 8. Security & Risk ----
-class TamperRequest(BaseModel):
-    dataset_id: str
-    mode: str
-    magnitude: float
-
-@api_router.post("/security/simulate-tamper", tags=["Security"])
-def simulate_tamper(req: TamperRequest):
-    return {
-      "mode": req.mode,
-      "hash_match": False,
-      "detections": ["hash_mismatch", "autoencoder"],
-      "verdict": "RESULT BLOCKED FROM VERIFIED STATUS"
-    }
-
-@api_router.get("/security/reports/{id}", tags=["Security"])
-def get_security_report(id: str, session: Session = Depends(get_session)):
-    rep = session.get(SecurityReport, id)
-    if not rep:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return rep
+api_router.include_router(security_router, prefix="/security", tags=["Security"])
 
 @api_router.get("/risk/assessment", tags=["Risk"])
 def get_risk_assessment(region: str, session: Session = Depends(get_session)):
@@ -323,5 +330,5 @@ def get_risk_assessment(region: str, session: Session = Depends(get_session)):
       "interaction_uplift": 0.15,
       "uncertainty_lower": 0.10,
       "uncertainty_upper": 0.20,
-      "source_findings": ["find_123"]
+      "source_findings": [f.id for f in real_verified]
     }

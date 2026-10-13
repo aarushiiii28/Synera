@@ -37,10 +37,16 @@ function GlobePoints() {
         let added = 0;
         let attempts = 0;
         
+        let seed = 42;
+        const prng = () => {
+          seed = (seed * 1664525 + 1013904223) % 4294967296;
+          return seed / 4294967296;
+        };
+        
         while(added < count && attempts < 100000) {
           attempts++;
-          const phi = Math.acos(2 * Math.random() - 1);
-          const theta = 2 * Math.PI * Math.random();
+          const phi = Math.acos(2 * prng() - 1);
+          const theta = 2 * Math.PI * prng();
           
           const u = theta / (2 * Math.PI);
           const v = phi / Math.PI;
@@ -61,19 +67,19 @@ function GlobePoints() {
       });
   }, []);
 
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tempNode = useMemo(() => new THREE.Object3D(), []);
 
   useEffect(() => {
     if (meshRef.current && points.length > 0) {
       points.forEach((p, i) => {
-        dummy.position.copy(p);
-        dummy.lookAt(new THREE.Vector3().copy(p).multiplyScalar(2));
-        dummy.updateMatrix();
-        meshRef.current!.setMatrixAt(i, dummy.matrix);
+        tempNode.position.copy(p);
+        tempNode.lookAt(new THREE.Vector3().copy(p).multiplyScalar(2));
+        tempNode.updateMatrix();
+        meshRef.current!.setMatrixAt(i, tempNode.matrix);
       });
       meshRef.current.instanceMatrix.needsUpdate = true;
     }
-  }, [points, dummy]);
+  }, [points, tempNode]);
 
   if (points.length === 0) return null;
 

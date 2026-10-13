@@ -51,10 +51,28 @@ def test_findings_pagination_sort():
     assert len(data["items"]) <= 1
 
 def test_finding_verify():
-    # Verify a SIMULATED finding (max status VALIDATED)
-    response = client.post("/api/v1/findings/find_123/verify")
-    assert response.status_code == 200
-    assert response.json()["new_status"] == "VALIDATED"
+    from synera_core.provenance.hashing import sha256_obj
+    fid = sha256_obj({"test": "finding_verify"})[:12]
+    with next(get_session()) as session:
+        f = Finding(
+            id=fid, dataset_id="env_panel",
+            v1="heat_index", v2="pm25", interaction_type="SYNERGISTIC",
+            status="VALIDATED", provenance="SIMULATED", q_value=0.001,
+            effect_size=0.440, stats={}, methods={}, replication={},
+            confidence={}, history=[]
+        )
+        session.add(f)
+        session.commit()
+    try:
+        response = client.post(f"/api/v1/findings/{fid}/verify")
+        assert response.status_code == 200
+        assert response.json()["new_status"] == "VALIDATED"
+    finally:
+        with next(get_session()) as session:
+            f = session.get(Finding, fid)
+            if f:
+                session.delete(f)
+                session.commit()
 
 def test_interactions_matrix():
     response = client.get("/api/v1/interactions/matrix?dataset_id=env_panel")

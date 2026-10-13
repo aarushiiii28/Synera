@@ -1,12 +1,27 @@
 import React, { Suspense } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchHealth } from '../../lib/api';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { fetchHealth, fetchFindings } from '../../lib/api';
+import { motion } from 'framer-motion';
 
 const Globe = React.lazy(() => import('../../components/Globe'));
 
+function DataPacket({ delay = 0, duration = 4 }) {
+  return (
+    <motion.div
+      className="absolute top-[-1px] left-0 w-8 h-[2px] bg-gradient-to-r from-transparent via-signal to-transparent z-10"
+      initial={{ left: '-5%' }}
+      animate={{ left: '105%' }}
+      transition={{
+        duration,
+        ease: 'linear',
+        repeat: Infinity,
+        delay,
+      }}
+    />
+  );
+}
 
-
-function WorkflowStrip({ counts, isOffline }: { counts: Record<string, number>, isOffline: boolean }) {
+function WorkflowStrip({ counts, isOffline, height }: { counts: Record<string, number>, isOffline: boolean, height: number }) {
   const steps = [
     { id: 'candidates', label: 'CANDIDATES', val: counts.candidates },
     { id: 'validated', label: 'VALIDATED', val: counts.validated },
@@ -16,9 +31,15 @@ function WorkflowStrip({ counts, isOffline }: { counts: Record<string, number>, 
 
   return (
     <div className="absolute bottom-16 left-8 right-8 lg:left-16 lg:right-[40%] flex items-end">
-      <div className="w-full flex justify-between relative border-t border-line pt-4">
+      <div className="w-full flex justify-between relative border-t border-line pt-4 overflow-hidden">
+        {!isOffline && (
+          <>
+            <DataPacket delay={0} />
+            <DataPacket delay={2.5} duration={3} />
+          </>
+        )}
         {steps.map((s) => (
-          <div key={s.id} className="flex flex-col gap-1 relative">
+          <div key={s.id} className="flex flex-col gap-1 relative z-20">
             <div className="absolute -top-[19px] left-0 w-1.5 h-1.5 bg-line rounded-full" />
             <div className="font-mono text-[10px] tracking-widest text-muted uppercase">{s.label}</div>
             <div className={`font-mono text-xl ${isOffline ? 'text-alert' : 'text-text'}`}>
@@ -26,6 +47,12 @@ function WorkflowStrip({ counts, isOffline }: { counts: Record<string, number>, 
             </div>
           </div>
         ))}
+        <div className="flex flex-col gap-1 relative z-20 items-end">
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase">LEDGER HEIGHT</div>
+          <div className={`font-mono text-xl ${isOffline ? 'text-alert' : 'text-signal'}`}>
+            {isOffline ? '---' : height}
+          </div>
+        </div>
       </div>
       
       {isOffline && (
@@ -45,15 +72,24 @@ export function Observatory() {
     refetchInterval: 10000
   });
 
-  const isOffline = isHealthError || (!health && !isHealthError);
-  
-  // Wait, Track B capped at validated. Verified = 0. We'll use real counts when integrated in Part 8.
+  const queries = useQueries({
+    queries: [
+      { queryKey: ['findings', 'CANDIDATE'], queryFn: () => fetchFindings({ status: 'CANDIDATE', limit: '1' }), refetchInterval: 10000 },
+      { queryKey: ['findings', 'VALIDATED'], queryFn: () => fetchFindings({ status: 'VALIDATED', limit: '1' }), refetchInterval: 10000 },
+      { queryKey: ['findings', 'VERIFIED'], queryFn: () => fetchFindings({ status: 'VERIFIED', limit: '1' }), refetchInterval: 10000 },
+      { queryKey: ['findings', 'BLOCKED'], queryFn: () => fetchFindings({ status: 'BLOCKED', limit: '1' }), refetchInterval: 10000 },
+    ]
+  });
 
+  const isOffline = isHealthError || (!health && !isHealthError);
+  const height = health?.ledger?.height || 0;
+  
+  // Track B capped at validated. Verified = 0 if no real findings exist.
   const safeCounts = {
-    candidates: 0,
-    validated: 0,
-    verified: 0,
-    blocked: 0
+    candidates: queries[0].data?.total || 0,
+    validated: queries[1].data?.total || 0,
+    verified: queries[2].data?.total || 0,
+    blocked: queries[3].data?.total || 0,
   };
 
   return (
@@ -83,7 +119,7 @@ export function Observatory() {
         </div>
       </div>
       
-      <WorkflowStrip counts={safeCounts} isOffline={isOffline} />
+      <WorkflowStrip counts={safeCounts} isOffline={isOffline} height={height} />
     </div>
   );
 }
