@@ -65,6 +65,23 @@ class LedgerConfig(BaseModel):
     key: str = "artifacts/keys/ledger_ed25519.pem"
 
 
+class ExpressionFilterConfig(BaseModel):
+    """Independent low-expression filter (never uses group labels or any test statistic)."""
+
+    min_mean_log2: float = 1.0
+    min_log2: float = 1.0
+    min_samples: int = 3
+
+
+class DiscoveryConfig(BaseModel):
+    """Panel (continuous-stressor) discovery parameters. ``effect_gate`` is in outcome-SD units."""
+
+    effect_gate: float = 0.05
+    n_boot: int = 299
+    n_ci: int = 200
+    topk_second_opinion: int = 6
+
+
 class Settings(BaseSettings):
     """Global configuration settings for SYNERA core pipelines."""
 
@@ -78,6 +95,9 @@ class Settings(BaseSettings):
     alpha: float = Field(default=0.05, gt=0.0, lt=1.0)
     fdr_method: str = Field(default="bh")
     min_abs_effect: float = Field(default=0.5, description="log2 scale effect size threshold")
+    osdr_expression_variant: str = Field(default="rRNArm", description="rRNArm | Normalized_Counts")
+    expression_filter: ExpressionFilterConfig = Field(default_factory=ExpressionFilterConfig)
+    discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
     bootstrap_reps: int = Field(default=2000, gt=0)
     cv_folds: int = Field(default=5, gt=1)
     max_findings_per_run: int = Field(default=50, gt=0)

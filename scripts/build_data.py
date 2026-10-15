@@ -1,97 +1,101 @@
-"""Main data pipeline orchestrator.
+"""Main data pipeline. Idempotent: fetch (or read cache) -> harmonize -> QC -> hash -> ledger -> MANIFEST.
 
-Idempotent pipeline: fetch -> harmonize -> QC -> hash -> register -> MANIFEST.
+    python scripts/build_data.py          # or:  make data
+
+Only raw files that actually exist are used. If an OSDR study's files are missing the study is reported as
+BLOCKED (never substituted). A second run is fully offline: HTTP responses are cached under data/raw/cache,
+and every artifact is registered in the ledger idempotently by its SHA-256.
 """
+from __future__ import annotations
 
-import sys
-from pathlib import Path
 import subprocess
+import sys
+
+import pandas as pd
+import yaml
 
 from synera_core.config import find_repo_root
-from synera_core.provenance.manifest import register_file, build_run_manifest
-from synera_core.provenance.ledger import Ledger
+from synera_core.data.harmonize import harmonize_osdr
+from synera_core.provenance.manifest import build_run_manifest, register_file
+from synera_core.provenance.hashing import sha256_file
+from synera_core.provenance.store import open_ledger
 
-def main():
-    print("=== SYNERA Data Build Pipeline ===")
-    
-    repo_root = find_repo_root()
-    db_path = repo_root / "artifacts" / "synera.db"
-    key_path = repo_root / "configs" / "signer.key"
-    
-    # Initialize ledger if doesn't exist
-    ledger = Ledger(db_path, key_path)
-    
-    print("\n1. Building Environmental Stressor Panel...")
-    subprocess.run([sys.executable, str(repo_root / "scripts" / "build_env_data.py")], check=True)
-    
-    print("\n2. Harmonizing OSDR Candidates (OSD-211, OSD-237)...")
-    import yaml
-    from synera_core.data.harmonize import harmonize_osdr
-    from synera_core.data.osdr import download
-    import traceback
-    
-    config_path = repo_root / "configs" / "datasets.yaml"
-    with open(config_path, "r") as f:
-        datasets_cfg = yaml.safe_load(f)
-        
-    discovery_id = datasets_cfg.get("discovery", "OSD-211")
-    replication_id = datasets_cfg.get("replication", "OSD-237")
-    
-    def process_study(study_id):
-        print(f"Processing {study_id}...")
+
+def main() -> int:
+    root = find_repo_root()
+    ledger = open_ledger()
+    manifest = root / "data" / "MANIFEST.json"
+    blocked: list[str] = []
+
+    print("1. Environmental stressor panel (Open-Meteo; cached after first run)")
+    env_path = root / "data" / "processed" / "env_panel.parquet"
+    try:
+        subprocess.run([sys.executable, str(root / "scripts" / "build_env_data.py")], check=True, cwd=root)
+    except subprocess.CalledProcessError as exc:
+        if not env_path.exists():
+            blocked.append(f"BLOCKED: environmental panel could not be built and none exists ({exc})")
+        else:
+            print("   fetch failed; using the existing tracked panel")
+    if env_path.exists():
+        register_file(ledger, env_path, "dataset", {"description": "Environmental stressor panel", "provenance": "REAL"},
+                      manifest_path=manifest)
+
+    print("2. NASA OSDR studies (real files in data/raw/manual/osdr/<ID>/)")
+    cfg = yaml.safe_load((root / "configs" / "datasets.yaml").read_text())
+    for role in ("discovery", "replication"):
+        sid = cfg[role]
         try:
-            manual_dir = repo_root / "data" / "raw" / "manual" / "osdr" / study_id
-            if manual_dir.exists():
-                harmonize_osdr(study_id, Path("dummy"), Path("dummy"), ledger)
+            tissue = next((d.get("tissue") for d in cfg.get("datasets", []) if d["id"] == sid.lower() and "tissue" in d), None)
+            harmonize_osdr(sid, None, None, ledger, tissue=tissue)
+        except FileNotFoundError as exc:
+            # Raw files are not committed (data/raw is ignored). If the processed tables exist they are registered as they are.
+            procs = [root / "data" / "processed" / f"osdr_{sid}_{k}" for k in ("expr.parquet", "meta.parquet", "qc.json")]
+            if all(p.exists() for p in procs):
+                for p in procs:
+                    register_file(ledger, p, "dataset", {"study_id": sid, "provenance": "REAL", "note": "registered from tracked processed tables"},
+                                  manifest_path=manifest)
+                print(f"   {sid}: raw files absent; registered the existing processed tables")
             else:
-                counts = download(study_id, r"Normalized_Counts.*\.csv")
-                isa = download(study_id, r"^s_.*\.txt")
-                if not counts or not isa:
-                    raise FileNotFoundError(f"Could not download counts or ISA files for {study_id}.")
-                harmonize_osdr(study_id, counts[0], isa[0], ledger)
-                
-            # Clear BLOCKED if success
-            prog_path = repo_root / "PROGRESS.md"
-            if prog_path.exists():
-                content = prog_path.read_text(encoding="utf-8")
-                content = content.replace(
-                    "- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**\n",
-                    ""
-                )
-                prog_path.write_text(content, encoding="utf-8")
-                
-        except Exception as e:
-            print(f"Failed to process {study_id}: {e}")
-            traceback.print_exc()
-            prog_path = repo_root / "PROGRESS.md"
-            if prog_path.exists():
-                content = prog_path.read_text(encoding="utf-8")
-                if "BLOCKED: Unable to download" not in content:
-                    content = content.replace(
-                        "- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237.",
-                        "- **BLOCKED: Unable to download real files for OSDR studies. Fallback substitution removed.**\n- *None.* (Previously Blocked: Unblocked by setting discovery=OSD-211, replication=OSD-237."
-                    )
-                    prog_path.write_text(content, encoding="utf-8")
-            
-    process_study(discovery_id)
-    process_study(replication_id)
-        
-    print("\n3. Generating Data Manifest...")
-    # Build a run manifest for this pipeline execution
-    manifest = build_run_manifest(
-        config={"script_name": "scripts/build_data.py"},
-        dataset_hashes={"raw_cache": "auto"},
-        model_hashes={},
-        seed=42,
-        repo_root=repo_root
-    )
-    
-    manifest_path = repo_root / "data" / "MANIFEST.json"
+                blocked.append(f"BLOCKED: {sid} ({role}): {exc}")
+                print(f"   {blocked[-1]}")
+        except Exception as exc:  # reported, never silently replaced by anything
+            blocked.append(f"BLOCKED: {sid} ({role}): {exc}")
+            print(f"   {blocked[-1]}")
+
+    print("3. Reference data")
+    sym = root / "data" / "reference" / "mouse_ensembl_symbols.tsv"
+    if sym.exists():
+        register_file(ledger, sym, "dataset", {"type": "reference", "source": "mygene.info"}, manifest_path=manifest)
+    else:
+        print("   gene symbol map missing: run  python scripts/build_gene_symbols.py")
+    geo = root / "data" / "reference" / "ne_110m_admin_0_countries.geojson"
+    if geo.exists():
+        register_file(ledger, geo, "dataset", {"type": "reference", "source": "Natural Earth 110m"}, manifest_path=manifest)
+
+    print("4. Run manifest (code, config and environment fingerprint)")
+    rm = build_run_manifest(config={"script": "scripts/build_data.py"}, dataset_hashes={}, model_hashes={},
+                            seed=20260929, repo_root=root)
+    out = root / "artifacts" / "reports" / "run_manifest.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     import json
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-        
-    print(f"\nPipeline complete! Manifest written to {manifest_path}")
+    out.write_text(json.dumps(rm, indent=2, default=str))
+
+    print("\nSummary")
+    env = root / "data" / "processed" / "env_panel.parquet"
+    if env.exists():
+        d = pd.read_parquet(env)
+        miss = d[["pm25", "pm10", "o3", "no2", "uv"]].isna().mean().mean()
+        print(f"  env_panel      rows={len(d):5d}  {d['date'].min():%Y-%m-%d}..{d['date'].max():%Y-%m-%d}  missing(AQ)={miss:.1%}  sha={sha256_file(env)[:12]}")
+    for sid in (cfg["discovery"], cfg["replication"]):
+        p = root / "data" / "processed" / f"osdr_{sid}_expr.parquet"
+        if p.exists():
+            e = pd.read_parquet(p)
+            print(f"  {sid:14s} genes={e.shape[0]:5d} samples={e.shape[1]:3d}  sha={sha256_file(p)[:12]}")
+    print(f"  ledger height  {ledger.height()}   chain valid: {ledger.verify()['valid']}")
+    for b in blocked:
+        print(" ", b)
+    return 1 if blocked else 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

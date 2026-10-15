@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
-from scipy import stats
 
 def continuous_interaction(
     y_col: str,

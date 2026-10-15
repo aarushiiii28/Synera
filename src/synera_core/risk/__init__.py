@@ -1,5 +1,5 @@
-"""Risk assessment and decision action subpackage."""
+"""Environmental risk brief from validated interaction findings."""
 
-from synera_core.risk.assessment import calculate_synergistic_risk_multiplier
+from synera_core.risk.assessment import evaluate_risk, get_forecast
 
-__all__ = ["calculate_synergistic_risk_multiplier"]
+__all__ = ["evaluate_risk", "get_forecast"]

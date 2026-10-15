@@ -1,6 +1,5 @@
-"""Pipeline orchestration and lifecycle subpackage."""
+"""Pipeline: dataset registry, nine-step orchestrator, finding lifecycle, VERIFIED gates, Track A analysis.
 
-from synera_core.pipeline.orchestrator import PipelineOrchestrator
-from synera_core.pipeline.states import FindingState, PipelineStage
-
-__all__ = ["FindingState", "PipelineOrchestrator", "PipelineStage"]
+Submodules are imported explicitly (``from synera_core.pipeline.orchestrator import execute_run``) so that
+light-weight consumers do not pull in the whole modelling stack.
+"""

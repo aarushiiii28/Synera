@@ -1,32 +1,85 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* SYNERA design tokens: "mission control meets planetary observatory". See docs/DESIGN_SYSTEM.md. */
+:root {
+  --void: #02060d;
+  --abyss: #061424;
+  --hull: #0b2037;
+  --hull-2: #112d4d;
+  --line: rgba(110, 190, 255, 0.16);
+  --line-strong: rgba(110, 190, 255, 0.36);
+  --text: #eaf2fb;
+  --muted: #8fa6bf;
+  --faint: #5a7491;
 
-@layer base {
-  :root {
-    --void: #050D18;
-    --abyss: #081B2E;
-    --hull: #0D2540;
-    --hull-2: #123152;
-    --line: rgba(110, 190, 255, 0.16);
-    --line-strong: rgba(110, 190, 255, 0.34);
-    --text: #E8F1FA;
-    --muted: #7F98B2;
-    --faint: #4B6480;
-    
-    --signal: #16B5FF;
-    --biosphere: #6FD65B;
-    --solar: #FFB547;
-    --alert: #FF4D5E;
-    --teal: #19E3B1;
-  }
-  
-  body {
-    @apply bg-[var(--abyss)] text-[var(--text)] font-sans antialiased;
-    background-image: 
-      linear-gradient(var(--line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--line) 1px, transparent 1px);
-    background-size: 48px 48px;
-    background-position: center top;
-  }
+  --signal: #16b5ff;      /* cyan: interactive, antagonistic, candidate */
+  --biosphere: #6fd65b;   /* green: verified, synergistic, REAL */
+  --solar: #ffb547;       /* amber: nonlinear, caution, SIMULATED */
+  --alert: #ff4d5e;       /* red: blocked, tamper */
+  --teal: #19e3b1;        /* validated */
+  --sun: #ffd9a0;         /* sunrise glare */
+
+  --rail-w: 232px;
+  --bar-h: 48px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html { color-scheme: dark; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 700px at 85% 108%, rgba(255, 181, 71, 0.10), transparent 60%),
+    radial-gradient(900px 600px at 10% -10%, rgba(22, 181, 255, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--void) 0%, var(--abyss) 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+::selection { background: rgba(22, 181, 255, 0.35); }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: 2px; }
+
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+
+/* Numerals are always tabular monospace */
+.num, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.display { font-family: 'Sora', sans-serif; }
+.serif { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
+.label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.tracked { letter-spacing: 0.18em; text-transform: uppercase; }
+
+/* Crop-mark corner brackets: the signature panel edge */
+.crop { position: relative; }
+.crop::before, .crop::after, .crop > .crop-b::before, .crop > .crop-b::after {
+  content: ''; position: absolute; width: 10px; height: 10px; pointer-events: none; border: 0 solid var(--signal); opacity: 0.85;
+}
+.crop::before { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; }
+.crop::after { top: -1px; right: -1px; border-top-width: 1px; border-right-width: 1px; }
+.crop > .crop-b::before { bottom: -1px; left: -1px; border-bottom-width: 1px; border-left-width: 1px; }
+.crop > .crop-b::after { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+
+/* Hatched BLOCKED surface */
+.hatch-alert {
+  background-image: repeating-linear-gradient(135deg, rgba(255, 77, 94, 0.14) 0 6px, transparent 6px 14px);
+}
+
+/* Slow ambient motion (disabled for reduced-motion users) */
+@keyframes drift { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+@keyframes pulse-soft { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes beam { to { stroke-dashoffset: -48; } }
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.7s var(--ease) both; }
+.pulse-soft { animation: pulse-soft 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
 }

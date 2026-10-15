@@ -346,7 +346,13 @@ class Ledger:
         expected_prev = "0" * 64
 
         for row in rows:
-            block = self._row_to_block(row)
+            try:
+                block = self._row_to_block(row)
+            except ValueError:
+                # A payload that no longer parses is itself tampering; report it instead of crashing.
+                issues.append({"index": row[0], "code": "PAYLOAD_TAMPERED", "detail": "payload is not valid JSON"})
+                expected_prev = row[7]
+                continue
 
             # 1. Check prev_hash linkage
             if block.prev_hash != expected_prev:

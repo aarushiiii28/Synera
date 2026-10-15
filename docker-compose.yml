@@ -1,5 +1,27 @@
-# SYNERA Docker Compose Configuration
-# Note: Full container orchestration services are configured in Part 9.
-version: "3.9"
+# docker compose up --build   ->  web on http://localhost:8080, API docs on http://localhost:8000/docs
+# The ledger database and its signing key live in the `artifacts` volume, never in an image.
+services:
+  api:
+    build: { context: ., dockerfile: Dockerfile.api }
+    environment:
+      CORS_ORIGINS: "http://localhost:8080"
+      SYNERA_OFFLINE: "${SYNERA_OFFLINE:-0}"
+    volumes:
+      - artifacts:/app/artifacts
+      - ./data:/app/data
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    read_only: false
+    security_opt: ["no-new-privileges:true"]
+  web:
+    build: { context: ., dockerfile: Dockerfile.web }
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["8080:80"]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/var/cache/nginx", "/var/run", "/tmp"]
+    security_opt: ["no-new-privileges:true"]
 
-services: {}
+volumes:
+  artifacts:

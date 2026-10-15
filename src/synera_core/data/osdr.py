@@ -6,7 +6,6 @@ Handles downloading, parsing, and QC of spaceflight multi-omics studies
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional

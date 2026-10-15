@@ -10,7 +10,7 @@ from synera_core.discovery.continuous import continuous_interaction
 from synera_core.validation.multitest import bh_fdr
 from synera_core.validation.replication import replicate
 from synera_core.validation.confidence import compute_confidence
-from synera_core.pipeline.states import Finding, EffectModel, StatsModel, MethodsModel, SecurityModel, ConfidenceModel
+from synera_core.pipeline.states import Finding, EffectModel, StatsModel, MethodsModel, SecurityModel
 
 def test_bh_matches_statsmodels():
     try:

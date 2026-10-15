@@ -39,3 +39,9 @@ Thumbs.db
 
 # Scratch directories
 scratch/
+
+# Generated benchmark datasets (deterministic; rebuilt by scripts/seed_db.py)
+data/synthetic/
+frontend/dist/
+*.tsbuildinfo
+scratch_vite.*

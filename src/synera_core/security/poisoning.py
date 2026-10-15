@@ -1,224 +1,392 @@
-import pandas as pd
-import numpy as np
-from typing import Dict, Any, List, Optional
-from sklearn.ensemble import IsolationForest
-from sklearn.covariance import MinCovDet
-from sklearn.neighbors import NearestNeighbors
-from scipy import stats
+"""Ensemble poisoning / anomaly detection for tabular datasets.
+
+Design rules
+------------
+* **Calibrated, not guessed.** Every statistical detector scores rows and flags those above the 99th
+  percentile of the same score on a *registered baseline* (``Baseline``). A detector only raises a
+  ``WARN`` when the number of flagged rows is implausible under the clean 1% rate (binomial test at
+  the 0.1% level). Without a baseline the detectors fall back to robust in-sample cutoffs.
+* **Only integrity-critical checks can block.** ``physical_range`` and ``temporal_sanity`` are
+  ``blocking`` (a FAIL makes the report ``COMPROMISED``). Every statistical detector is advisory:
+  it produces ``WARN`` + a score and marks the report ``SUSPICIOUS``, never ``COMPROMISED``.
+  The cryptographic hash check lives in :mod:`synera_core.security.integrity`.
+* **Honest about applicability.** The label-flip check says so when the labels carry no separable
+  structure in feature space (it cannot be informative there).
+"""
+
+from __future__ import annotations
+
 import hashlib
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+from sklearn.covariance import MinCovDet
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import NearestNeighbors
+
 from synera_core.validation.multitest import bh_fdr
 
+BLOCKING_CHECKS = {"physical_range", "temporal_sanity"}
+CLEAN_RATE = 0.01          # share of clean rows above the 99th-percentile cutoff
+FLAG_LEVEL = 0.999         # binomial confidence required before a detector raises WARN
+DESIGN_ALLOWANCE = 2.5     # rows of a daily panel are autocorrelated, so flagged counts are overdispersed
+
+# Physical plausibility ranges used when the caller supplies none (column name -> (min, max)).
+DEFAULT_RANGES: Dict[str, tuple] = {
+    "tmax": (-60.0, 60.0), "tmean": (-60.0, 60.0), "rh": (0.0, 100.0),
+    "heat_index": (-60.0, 80.0), "precip": (0.0, 2000.0), "pm25": (0.0, 2000.0),
+    "pm10": (0.0, 3000.0), "o3": (0.0, 1000.0), "no2": (0.0, 1000.0),
+    "uv": (0.0, 20.0), "wind": (0.0, 400.0),
+}
+
+
 class SecurityReport:
-    def __init__(self):
+    """Container for per-check results and the overall verdict."""
+
+    def __init__(self) -> None:
         self.checks: List[Dict[str, Any]] = []
-        self.suspicion_scores = None
+        self.suspicion_scores: Optional[np.ndarray] = None
         self.status = "CLEAN"
-        
-    def add_check(self, name: str, status: str, score: float, detail: str, evidence: Any = None):
-        self.checks.append({
-            "name": name,
-            "status": status,
-            "score": score,
-            "detail": detail,
-            "evidence": evidence
-        })
-        if status == "FAIL":
+
+    def add_check(self, name: str, status: str, score: float, detail: str, evidence: Any = None) -> None:
+        blocking = name in BLOCKING_CHECKS
+        self.checks.append({"name": name, "status": status, "score": float(score), "detail": detail,
+                            "blocking": blocking, "evidence": evidence})
+        if status == "FAIL" and blocking:
             self.status = "COMPROMISED"
-        elif status == "WARN" and self.status == "CLEAN":
-            # If there's already a WARN, multiple WARNs might make it SUSPICIOUS
-            warn_count = sum(1 for c in self.checks if c["status"] == "WARN")
-            if warn_count > 1:
-                self.status = "SUSPICIOUS"
-            else:
-                self.status = "CLEAN" # still clean with 1 warn
+        elif status in ("WARN", "FAIL") and self.status == "CLEAN":
+            self.status = "SUSPICIOUS"
+
+    def to_dict(self) -> dict:
+        return {"status": self.status, "checks": self.checks}
+
+
+# --------------------------------------------------------------------------- #
+# Baseline
+# --------------------------------------------------------------------------- #
+def _plausible_defaults(df: pd.DataFrame) -> Dict[str, tuple]:
+    """Default physical ranges for columns that look like physical units.
+
+    A column whose median sits at the very edge of its range (e.g. a z-scored relative humidity, median ~0
+    against a 0-100 range) is not in physical units, so the range does not apply to it.
+    """
+    out: Dict[str, tuple] = {}
+    for c, (lo, hi) in DEFAULT_RANGES.items():
+        if c in df.columns and pd.api.types.is_numeric_dtype(df[c]):
+            med, span = float(df[c].median()), hi - lo
+            if lo + 0.02 * span <= med <= hi - 0.02 * span:
+                out[c] = (lo, hi)
+    return out
+
+
+def _binom_cutoff(n: int, rate: float = CLEAN_RATE) -> int:
+    """Largest flagged count still consistent with the clean rate (binomial, widened for autocorrelation)."""
+    return max(2, int(stats.binom.ppf(FLAG_LEVEL, n, rate)), int(np.ceil(DESIGN_ALLOWANCE * rate * n)))
+
+
+def _knn_agreement(Z: np.ndarray, y: np.ndarray, k: int = 5) -> np.ndarray:
+    """Share of each row's k nearest neighbours (feature space) that carry the same label."""
+    k = min(k, len(Z) - 1)
+    _, idx = NearestNeighbors(n_neighbors=k + 1).fit(Z).kneighbors(Z)
+    return (y[idx[:, 1:]] == y[:, None]).mean(axis=1)
+
 
 def calculate_psi(expected: np.ndarray, actual: np.ndarray, buckets: int = 10) -> float:
-    """Calculate Population Stability Index."""
-    def scale_range(arr):
-        return (arr - arr.min()) / (arr.max() - arr.min() + 1e-9)
-    
-    breaks = np.linspace(0, 1, buckets + 1)
-    expected_pct = np.histogram(scale_range(expected), breaks)[0] / len(expected)
-    actual_pct = np.histogram(scale_range(actual), breaks)[0] / len(actual)
-    
-    expected_pct = np.clip(expected_pct, 1e-4, 1.0)
-    actual_pct = np.clip(actual_pct, 1e-4, 1.0)
-    
-    psi_values = (expected_pct - actual_pct) * np.log(expected_pct / actual_pct)
-    return float(np.sum(psi_values))
+    """Population Stability Index using quantile bins of the expected sample."""
+    expected, actual = np.asarray(expected, float), np.asarray(actual, float)
+    edges = np.unique(np.quantile(expected, np.linspace(0, 1, buckets + 1)))
+    if len(edges) < 3:
+        return 0.0
+    edges[0], edges[-1] = -np.inf, np.inf
+    e = np.clip(np.histogram(expected, edges)[0] / len(expected), 1e-4, 1.0)
+    a = np.clip(np.histogram(actual, edges)[0] / len(actual), 1e-4, 1.0)
+    return float(np.sum((e - a) * np.log(e / a)))
 
-def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None, 
-                 baseline: Optional[Dict[str, Any]] = None, 
+
+def _fit_autoencoder(Z: np.ndarray, seed: int = 0, epochs: int = 200):
+    import torch
+    import torch.nn as nn
+
+    torch.manual_seed(seed)
+    p = Z.shape[1]
+    h = max(2, p // 2)
+    net = nn.Sequential(nn.Linear(p, h), nn.Tanh(), nn.Linear(h, p))
+    opt = torch.optim.Adam(net.parameters(), lr=0.01)
+    X = torch.tensor(Z, dtype=torch.float32)
+    for _ in range(epochs):
+        opt.zero_grad()
+        loss = ((net(X) - X) ** 2).mean()
+        loss.backward()
+        opt.step()
+    return net
+
+
+def _ae_scores(net, Z: np.ndarray) -> np.ndarray:
+    import torch
+
+    with torch.no_grad():
+        X = torch.tensor(Z, dtype=torch.float32)
+        return ((net(X) - X) ** 2).mean(dim=1).numpy()
+
+
+@dataclass
+class Baseline:
+    """Registered reference statistics of a clean dataset (fit once, reuse for every scan)."""
+
+    columns: List[str]
+    center: np.ndarray
+    scale: np.ndarray
+    samples: Dict[str, np.ndarray]
+    ranges: Dict[str, tuple]
+    iso: IsolationForest
+    iso_cut: float
+    mcd: Optional[MinCovDet]
+    mcd_cut: float
+    ae: Any
+    ae_cut: float
+    n_rows: int
+    seed: int = 0
+    label_rates: Dict[str, float] = field(default_factory=dict)
+    _digest: str = field(default="", repr=False)
+
+    @classmethod
+    def from_frame(cls, df: pd.DataFrame, ranges: Optional[Dict[str, tuple]] = None, seed: int = 0,
+                   meta: Optional[pd.DataFrame] = None) -> "Baseline":
+        num = df.select_dtypes(include=[np.number])
+        num = num.loc[:, num.nunique() > 1]
+        cols = list(num.columns)
+        X = num.fillna(num.median()).to_numpy(float)
+        center = np.median(X, axis=0)
+        scale = 1.4826 * np.median(np.abs(X - center), axis=0) + 1e-9
+        Z = (X - center) / scale
+        iso = IsolationForest(n_estimators=200, random_state=seed, n_jobs=1).fit(Z)
+        iso_cut = float(np.quantile(-iso.score_samples(Z), 1 - CLEAN_RATE))
+        mcd, mcd_cut = None, float("inf")
+        if len(Z) > 3 * Z.shape[1] and Z.shape[1] <= 50:
+            mcd = MinCovDet(random_state=seed).fit(Z)
+            mcd_cut = float(np.quantile(mcd.mahalanobis(Z), 1 - CLEAN_RATE))
+        ae = _fit_autoencoder(Z, seed)
+        ae_cut = float(np.quantile(_ae_scores(ae, Z), 1 - CLEAN_RATE))
+        explicit = dict(ranges or {})
+        # Default physical ranges apply only to columns in physical units: if the registered clean data already
+        # leave a default range (e.g. z-scored columns), that range is not meaningful for this dataset.
+        rng = {c: explicit[c] for c in cols if c in explicit}
+        for c in cols:
+            if c not in rng and c in DEFAULT_RANGES:
+                lo, hi = DEFAULT_RANGES[c]
+                if float(num[c].min()) >= lo and float(num[c].max()) <= hi:
+                    rng[c] = (lo, hi)
+        b = cls(cols, center, scale, {c: num[c].dropna().to_numpy(float) for c in cols}, rng,
+                iso, iso_cut, mcd, mcd_cut, ae, ae_cut, len(df), seed)
+        if meta is not None:
+            for col in meta.columns:
+                if meta[col].nunique() == 2:
+                    agree = _knn_agreement(Z, pd.factorize(meta[col])[0])
+                    if agree.mean() >= 0.65:
+                        b.label_rates[col] = float(np.mean(agree <= 0.2))
+        b._digest = hashlib.sha256(np.concatenate([center, scale, [iso_cut, ae_cut, len(df)]]).tobytes()).hexdigest()
+        return b
+
+    def digest(self) -> str:
+        """Short fingerprint to store in the ledger when the baseline is registered."""
+        return self._digest
+
+    def summary(self) -> dict:
+        return {"n_rows": self.n_rows, "columns": self.columns, "digest": self._digest,
+                "cutoffs": {"isolation_forest": self.iso_cut, "mcd": self.mcd_cut, "autoencoder": self.ae_cut}}
+
+
+def _legacy_baseline(baseline: dict, df: pd.DataFrame) -> Optional["Baseline"]:
+    """Support the older dict form ``{"X_matrix": ..., col: {"sample": ...}}``."""
+    if "X_matrix" in baseline:
+        Xb = np.asarray(baseline["X_matrix"], float)
+        cols = list(df.select_dtypes(include=[np.number]).columns)[: Xb.shape[1]]
+        frame = pd.DataFrame(Xb, columns=cols[: Xb.shape[1]] if len(cols) >= Xb.shape[1] else range(Xb.shape[1]))
+        return Baseline.from_frame(frame)
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Scan
+# --------------------------------------------------------------------------- #
+def _flag(report: SecurityReport, name: str, scores: np.ndarray, cut: float, label: str) -> np.ndarray:
+    flagged = scores > cut
+    n_flag, n = int(flagged.sum()), len(scores)
+    limit = _binom_cutoff(n)
+    if n_flag > limit:
+        report.add_check(name, "WARN", float(n_flag), f"{n_flag}/{n} rows above the clean 99th-percentile {label} cutoff (clean expectation {CLEAN_RATE * n:.1f}, alarm above {limit})",
+                         {"flagged": n_flag, "limit": limit})
+    else:
+        report.add_check(name, "PASS", 0.0, f"{n_flag}/{n} rows above the {label} cutoff (within clean expectation)",
+                         {"flagged": n_flag, "limit": limit})
+    return flagged
+
+
+def scan_dataset(df_or_expr: pd.DataFrame, meta: Optional[pd.DataFrame] = None,
+                 baseline: "Baseline | Dict[str, Any] | None" = None,
                  ranges: Optional[Dict[str, tuple]] = None) -> SecurityReport:
-    """
-    Ensemble poisoning and anomaly detection.
-    """
+    """Run the ensemble. See the module docstring for the calibration and blocking policy."""
+    df = df_or_expr
     report = SecurityReport()
-    report.suspicion_scores = np.zeros(len(df_or_expr))
-    
-    # Check 1: Schema & physical-range validation
-    if ranges:
-        out_of_bounds = 0
-        for col, (vmin, vmax) in ranges.items():
-            if col in df_or_expr.columns:
-                vals = df_or_expr[col].dropna()
-                violations = (vals < vmin) | (vals > vmax)
-                if violations.any():
-                    out_of_bounds += violations.sum()
-        if out_of_bounds > 0:
-            report.add_check("physical_range", "FAIL", float(out_of_bounds), f"{out_of_bounds} values out of bounds")
+    n = len(df)
+    report.suspicion_scores = np.zeros(n)
+
+    base: Optional[Baseline] = None
+    drift_samples: Dict[str, np.ndarray] = {}
+    if isinstance(baseline, Baseline):
+        base = baseline
+        drift_samples = baseline.samples
+    elif isinstance(baseline, dict):
+        base = _legacy_baseline(baseline, df)
+        drift_samples = {k: np.asarray(v["sample"], float) for k, v in baseline.items()
+                         if isinstance(v, dict) and "sample" in v}
+
+    # 1. Physical range (blocking)
+    # ranges=None -> baseline's ranges (or the defaults); ranges={} -> no range check (e.g. z-scored data)
+    eff_ranges = dict(ranges) if ranges is not None else (dict(base.ranges) if base is not None else _plausible_defaults(df))
+    if eff_ranges:
+        bad = 0
+        worst = {}
+        for col, (lo, hi) in eff_ranges.items():
+            if col in df.columns:
+                v = df[col].dropna()
+                nbad = int(((v < lo) | (v > hi)).sum())
+                if nbad:
+                    worst[col] = nbad
+                    bad += nbad
+                    idx = df.index.get_indexer(v.index[(v < lo) | (v > hi)])
+                    report.suspicion_scores[idx[idx >= 0]] += 10.0
+        if bad:
+            report.add_check("physical_range", "FAIL", float(bad), f"{bad} values outside physical limits in {sorted(worst)}", worst)
         else:
             report.add_check("physical_range", "PASS", 0.0, "All values within physical ranges")
-            
-    # Check 2: Duplicates / Near-duplicates
-    # Exact hash
-    hashes = df_or_expr.apply(lambda row: hashlib.md5(row.values.tobytes()).hexdigest(), axis=1)
-    exact_dups = hashes.duplicated(keep=False).sum()
-    if exact_dups > 0:
-        report.add_check("duplicates", "FAIL", float(exact_dups), f"{exact_dups} exact duplicate rows found")
-    else:
-        report.add_check("duplicates", "PASS", 0.0, "No exact duplicates")
-        
-    # Check 3: Sample-level outliers
+
+    # 2. Duplicates (advisory)
+    num = df.select_dtypes(include=[np.number])
+    if len(num.columns):
+        dup = int(num.round(10).duplicated(keep=False).sum())
+        if dup:
+            report.add_check("duplicates", "WARN", float(dup), f"{dup} rows duplicate another row exactly")
+        else:
+            report.add_check("duplicates", "PASS", 0.0, "No exact duplicate rows")
+
+    # 3. Multivariate outlier ensemble (advisory)
     try:
-        X = df_or_expr.select_dtypes(include=[np.number]).fillna(df_or_expr.mean(numeric_only=True)).values
-        
-        # Isolation Forest
-        if baseline is not None and "X_matrix" in baseline:
-            iso = IsolationForest(contamination='auto', random_state=42)
-            iso.fit(baseline["X_matrix"])
-            base_scores = -iso.score_samples(baseline["X_matrix"])
-            thresh = np.percentile(base_scores, 99)
-            iso_scores = -iso.score_samples(X)
-            iso_preds = np.where(iso_scores > thresh, -1, 1)
+        cols = base.columns if base is not None else list(num.loc[:, num.nunique() > 1].columns)
+        X = num[cols].fillna(num[cols].median()).to_numpy(float)
+        if base is None:
+            base_local = None
+            center = np.median(X, axis=0)
+            scale = 1.4826 * np.median(np.abs(X - center), axis=0) + 1e-9
         else:
-            iso = IsolationForest(contamination=0.01, random_state=42)
-            iso_preds = iso.fit_predict(X)
-            iso_scores = -iso.score_samples(X)
-        
-        # MCD (Robust Mahalanobis)
-        if X.shape[0] > X.shape[1] and X.shape[1] < 50:
-            mcd = MinCovDet(random_state=42).fit(X)
-            mcd_dist = mcd.mahalanobis(X)
-            mcd_scores = mcd_dist / np.median(mcd_dist)
-        else:
-            mcd_scores = np.zeros(X.shape[0])
-            
-        # Very simple Autoencoder logic using PyTorch
-        import torch
-        import torch.nn as nn
-        import torch.optim as optim
-        torch.manual_seed(42)
-        n_features = X.shape[1]
-        n_hidden = max(2, n_features // 2)
-        model = nn.Sequential(
-            nn.Linear(n_features, n_hidden),
-            nn.ReLU(),
-            nn.Linear(n_hidden, n_features)
-        )
-        opt = optim.Adam(model.parameters(), lr=0.01)
-        loss_fn = nn.MSELoss()
-        X_t = torch.tensor(X, dtype=torch.float32)
-        for _ in range(50):
-            opt.zero_grad()
-            out = model(X_t)
-            loss = loss_fn(out, X_t)
-            loss.backward()
-            opt.step()
-            
-        with torch.no_grad():
-            X_rec = model(X_t).numpy()
-            
-        rec_errors = np.mean((X - X_rec)**2, axis=1)
-        rec_scores = rec_errors / (np.median(rec_errors) + 1e-9)
-        
-        # Consensus
-        consensus = (iso_scores / np.median(iso_scores)) + mcd_scores + rec_scores
-        report.suspicion_scores += consensus
-        
-        n_outliers = np.sum(iso_preds == -1)
-        expected_outliers = len(X) * 0.02
-        if n_outliers > expected_outliers:
-            report.add_check("isolation_forest", "WARN", float(n_outliers), f"{n_outliers} sample-level outliers detected by IF")
-        else:
-            report.add_check("isolation_forest", "PASS", 0.0, "No significant sample outliers by IF")
-            
-        n_mcd_out = np.sum(mcd_scores > 5.0)
-        if n_mcd_out > 0:
-            report.add_check("mcd", "WARN", float(n_mcd_out), f"{n_mcd_out} outliers detected by MCD")
-        else:
-            report.add_check("mcd", "PASS", 0.0, "No outliers by MCD")
-            
-        n_ae_out = np.sum(rec_scores > 3.0)
-        if n_ae_out > 0:
-            report.add_check("autoencoder", "WARN", float(n_ae_out), f"{n_ae_out} outliers detected by AE")
-        else:
-            report.add_check("autoencoder", "PASS", 0.0, "No outliers by AE")
-            
-    except Exception as e:
-        report.add_check("isolation_forest", "WARN", 1.0, f"Check failed: {str(e)}")
-        report.add_check("mcd", "WARN", 1.0, f"Check failed: {str(e)}")
-        report.add_check("autoencoder", "WARN", 1.0, f"Check failed: {str(e)}")
+            base_local = base
+            center, scale = base.center, base.scale
+        Z = (X - center) / scale
 
-    # Check 4: Distribution drift
-    if baseline is not None:
-        drifts = 0
-        for col, base_stats in baseline.items():
-            if col in df_or_expr.columns:
-                vals = df_or_expr[col].dropna().values
-                if len(vals) > 5 and len(base_stats.get('sample', [])) > 5:
-                    ks_stat, p = stats.ks_2samp(vals, base_stats['sample'])
-                    psi = calculate_psi(np.array(base_stats['sample']), vals)
-                    if p < 0.05 and psi > 0.2:
-                        drifts += 1
-        if drifts > 0:
-            report.add_check("distribution_drift", "WARN", float(drifts), f"{drifts} features show significant drift vs baseline")
+        if base_local is not None:
+            iso_s = -base_local.iso.score_samples(Z)
+            iso_cut = base_local.iso_cut
         else:
-            report.add_check("distribution_drift", "PASS", 0.0, "No significant distribution drift")
+            iso = IsolationForest(n_estimators=200, random_state=0, n_jobs=1).fit(Z)
+            iso_s = -iso.score_samples(Z)
+            iso_cut = float(np.median(iso_s) + 5 * 1.4826 * np.median(np.abs(iso_s - np.median(iso_s))))
+        f1 = _flag(report, "isolation_forest", iso_s, iso_cut, "IsolationForest")
 
-    # Check 5: Label-flip / Metadata-consistency
-    if meta is not None:
-        try:
-            X = df_or_expr.select_dtypes(include=[np.number]).fillna(df_or_expr.mean(numeric_only=True)).values
-            nn = NearestNeighbors(n_neighbors=min(5, len(X)-1))
-            nn.fit(X)
-            distances, indices = nn.kneighbors(X)
-            
-            flips = 0
-            for col in meta.columns:
-                if pd.api.types.is_numeric_dtype(meta[col]) and meta[col].nunique() == 2:
-                    y = meta[col].values
-                    for i in range(len(y)):
-                        neighbor_labels = y[indices[i]]
-                        if np.mean(neighbor_labels == y[i]) <= 0.2: # strongly disagrees
-                            flips += 1
-                            report.suspicion_scores[i] += 5.0
-            
-            if flips > 0:
-                report.add_check("label_flip", "WARN", float(flips), f"{flips} samples have labels disagreeing with neighbors")
+        if base_local is not None and base_local.mcd is not None:
+            d2 = base_local.mcd.mahalanobis(Z)
+            mcd_cut = base_local.mcd_cut
+        elif Z.shape[0] >= max(40, 5 * Z.shape[1]) and Z.shape[1] <= 50:   # a robust covariance needs enough rows
+            m = MinCovDet(random_state=0).fit(Z)
+            d2 = m.mahalanobis(Z)
+            p = Z.shape[1]
+            mcd_cut = float(stats.chi2.ppf(0.999, p) * np.median(d2) / stats.chi2.ppf(0.5, p))
+        else:
+            d2, mcd_cut = np.zeros(n), np.inf
+        f2 = _flag(report, "mcd", d2, mcd_cut, "robust-Mahalanobis")
+
+        if base_local is not None:
+            ae_s = _ae_scores(base_local.ae, Z)
+            ae_cut = base_local.ae_cut
+        else:
+            net = _fit_autoencoder(Z, 0)
+            ae_s = _ae_scores(net, Z)
+            ae_cut = float(np.median(ae_s) + 5 * 1.4826 * np.median(np.abs(ae_s - np.median(ae_s))))
+        f3 = _flag(report, "autoencoder", ae_s, ae_cut, "autoencoder reconstruction")
+
+        report.suspicion_scores += (iso_s / (iso_cut + 1e-12) + np.nan_to_num(d2 / (mcd_cut + 1e-12))
+                                    + ae_s / (ae_cut + 1e-12)) / 3.0
+        del f1, f2, f3
+    except Exception as exc:  # pragma: no cover - defensive; reported, never hidden
+        for nm in ("isolation_forest", "mcd", "autoencoder"):
+            report.add_check(nm, "WARN", 1.0, f"check could not run: {exc}")
+
+    # 4. Distribution drift vs baseline (advisory)
+    if drift_samples:
+        cols, pvals, psis = [], [], []
+        for col, ref in drift_samples.items():
+            if col in df.columns:
+                v = df[col].dropna().to_numpy(float)
+                if len(v) > 5 and len(ref) > 5:
+                    cols.append(col)
+                    pvals.append(float(stats.ks_2samp(v, ref).pvalue))
+                    psis.append(calculate_psi(ref, v))
+        if cols:
+            q = bh_fdr(np.array(pvals))
+            drifted = [c for c, qq, ps in zip(cols, q, psis) if qq < 0.001 and ps > 0.2]
+            if drifted:
+                report.add_check("distribution_drift", "WARN", float(len(drifted)),
+                                 f"{len(drifted)} feature(s) drifted vs baseline (KS q<0.001 and PSI>0.2): {drifted}",
+                                 {"features": drifted})
             else:
-                report.add_check("label_flip", "PASS", 0.0, "Labels consistent with expression space")
-        except Exception as e:
-            pass
-            
-    # Check 6: Temporal sanity
-    date_cols = [c for c in df_or_expr.columns if 'date' in str(c).lower() or 'time' in str(c).lower()]
+                report.add_check("distribution_drift", "PASS", 0.0, "No significant distribution drift vs baseline")
+
+    # 5. Label-flip / metadata consistency (advisory)
+    if meta is not None and len(num.columns):
+        try:
+            if base is not None:
+                Xl = num[base.columns].fillna(num[base.columns].median()).to_numpy(float)
+                Zs = (Xl - base.center) / base.scale
+            else:
+                Xl = num.fillna(num.median()).to_numpy(float)
+                Zs = (Xl - np.median(Xl, 0)) / (1.4826 * np.median(np.abs(Xl - np.median(Xl, 0)), 0) + 1e-9)
+            flips, informative, limit = 0, False, _binom_cutoff(n)
+            for col in meta.columns:
+                if meta[col].nunique() == 2:
+                    agree = _knn_agreement(Zs, pd.factorize(meta[col])[0])
+                    if agree.mean() < 0.65:
+                        continue
+                    informative = True
+                    bad = agree <= 0.2
+                    report.suspicion_scores[bad] += 5.0
+                    flips += int(bad.sum())
+                    if base is not None and col in base.label_rates:
+                        limit = max(limit, _binom_cutoff(n, max(base.label_rates[col], CLEAN_RATE)))
+            if not informative:
+                report.add_check("label_flip", "PASS", 0.0,
+                                 "Labels carry no separable structure in feature space; this check cannot be informative here")
+            elif flips > limit:
+                report.add_check("label_flip", "WARN", float(flips), f"{flips} samples disagree with nearly all of their nearest neighbours")
+            else:
+                report.add_check("label_flip", "PASS", 0.0, "Labels consistent with feature space")
+        except Exception as exc:  # pragma: no cover
+            report.add_check("label_flip", "WARN", 1.0, f"check could not run: {exc}")
+
+    # 6. Temporal sanity (blocking)
+    date_cols = [c for c in df.columns if "date" in str(c).lower() or "time" in str(c).lower()]
     if date_cols:
-        for dc in date_cols:
-            try:
-                dates = pd.to_datetime(df_or_expr[dc])
-                if 'city' in df_or_expr.columns:
-                    # check per city
-                    is_mono = df_or_expr.groupby('city')[dc].apply(lambda x: pd.to_datetime(x).is_monotonic_increasing).all()
-                else:
-                    is_mono = dates.is_monotonic_increasing
-                    
-                if not is_mono:
-                    report.add_check("temporal_sanity", "FAIL", 1.0, f"Timestamps in {dc} are not monotonic")
-                    break
-            except:
-                pass
-        else:
-            report.add_check("temporal_sanity", "PASS", 0.0, "Timestamps strictly monotonic")
+        dc = date_cols[0]
+        try:
+            d = pd.to_datetime(df[dc])
+            mono = (df.assign(_d=d).groupby("city")["_d"].apply(lambda x: x.is_monotonic_increasing).all()
+                    if "city" in df.columns else d.is_monotonic_increasing)
+            if mono:
+                report.add_check("temporal_sanity", "PASS", 0.0, "Timestamps strictly monotonic")
+            else:
+                report.add_check("temporal_sanity", "FAIL", 1.0, f"Timestamps in {dc} are not monotonic")
+        except Exception as exc:  # pragma: no cover
+            report.add_check("temporal_sanity", "WARN", 1.0, f"check could not run: {exc}")
 
     return report

@@ -1,7 +1,6 @@
 """Bootstrap confidence intervals."""
 
 import numpy as np
-import pandas as pd
 
 def factorial_bootstrap_ci(
     Y: np.ndarray, 

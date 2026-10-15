@@ -1,358 +1,109 @@
-# SYNERA API Contract v1
+# SYNERA API contract (v1)
 
-This document specifies the exact JSON schemas for the FastAPI backend serving the Web Intelligence Platform frontend. All endpoints are prefixed with `/api/v1`.
+Base URL `/api/v1`. JSON everywhere except the SSE stream. Errors always use one envelope:
 
-## Core Conventions
-- **Error Shape**: All `4xx` and `5xx` errors return:
-  ```json
-  {
-    "error": {
-      "code": "VALIDATION_ERROR",
-      "message": "Invalid input provided.",
-      "detail": "Field 'alpha' must be between 0 and 1."
-    }
-  }
-  ```
-- **Provenance Tags**: Objects like datasets and findings carry a `provenance` tag of either `"REAL"` or `"SIMULATED"`.
-- **CORS**: Configured via `.env` to allow frontend access.
-
-## 1. System & Ledger
-
-### `GET /health`
-Returns service status and cryptographic chain integrity.
-**Response (200)**:
 ```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "ledger": {
-    "height": 42,
-    "chain_valid": true
-  }
-}
+{ "error": { "code": "NOT_FOUND", "message": "finding 'x' not found", "detail": null } }
 ```
 
-### `GET /ledger/head`
-Returns the latest block in the ledger.
-**Response (200)**:
-```json
-{
-  "index": 41,
-  "timestamp": 1690000000.0,
-  "block_type": "FINDING_VERIFIED",
-  "prev_hash": "a1b2...",
-  "merkle_root": "c3d4...",
-  "payload_hash": "e5f6...",
-  "signature": "g7h8..."
-}
-```
+Codes: `BAD_REQUEST 400`, `NOT_FOUND 404`, `CONFLICT 409`, `VALIDATION_ERROR 422`, `RATE_LIMITED 429`, `UNAVAILABLE 503`.
+The OpenAPI document (`/docs`, `/openapi.json`) is generated from the code; this file explains semantics.
+The TypeScript mirror is `frontend/src/lib/api.ts`.
 
-### `GET /ledger/blocks`
-**Query Params**: `offset=0`, `limit=50`
-**Response (200)**: Array of block objects.
+**Principles that shape every response**
 
-### `GET /ledger/verify`
-Triggers a full cryptographic walk of the chain.
-**Response (200)**:
-```json
-{
-  "valid": true,
-  "blocks_checked": 42,
-  "errors": []
-}
-```
+* Nothing is a constant: every number is computed from data or read from a result file written by a build script.
+* `provenance` is `REAL` or `SIMULATED` on datasets, findings and risk briefs. Simulated findings are capped at `VALIDATED`.
+* The ledger is **read-only** through the API. The only ledger write an endpoint can cause is the `INTEGRITY_ALERT` appended by
+  `POST /datasets/{id}/verify` when a hash really mismatches.
 
-### `GET /ledger/proof/{artifact_hash}`
-**Response (200)**:
-```json
-{
-  "artifact_hash": "a1b2...",
-  "block_index": 12,
-  "merkle_proof": [
-    {"hash": "c3d4...", "position": "left"}
-  ],
-  "root": "e5f6...",
-  "verified": true
-}
-```
+## System and ledger
 
-## 2. Datasets
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/health` | `{status, version, offline, pipeline, database:{ok,schema_version}, ledger:{height, chain_valid, head, signer, issues[]}, counts:{datasets,runs,findings}}` |
+| GET | `/ledger/head` | the newest block |
+| GET | `/ledger/blocks?offset&limit&order=desc\|asc&block_type` | `{total, items:[Block]}` |
+| GET | `/ledger/blocks/{index}` | `Block` with full payload |
+| GET | `/ledger/verify` | `{valid, height, head, issues:[{index, code, detail}]}`; codes `PREV_HASH_MISMATCH PAYLOAD_TAMPERED MERKLE_MISMATCH HASH_MISMATCH BAD_SIGNATURE` |
+| GET | `/ledger/proof/{sha256}` | `{artifact_hash, block_index, block_type, merkle_root, merkle_proof:[{side:'L'\|'R', hash}], verified}`; 404 if the hash is not recorded |
 
-### `GET /datasets`
-**Response (200)**:
-```json
-[
-  {
-    "id": "osd-211-processed",
-    "name": "OSD-211 RNA-Seq",
-    "provenance": "REAL",
-    "hash": "a1b2...",
-    "features_count": 12000,
-    "samples_count": 21,
-    "created_at": 1690000000.0
-  }
-]
-```
+`Block = {index, timestamp, block_type, prev_hash, merkle_root, payload{…, artifact_hashes[]}, payload_hash, block_hash, signature, signer, artifact_count}`.
+Block types: `DATASET_REGISTERED MODEL_REGISTERED EXPERIMENT_RUN FINDING_VALIDATED FINDING_VERIFIED FINDING_REJECTED INTEGRITY_ALERT`.
 
-### `GET /datasets/{id}`
-**Response (200)**: Dataset object.
+## Datasets
 
-### `POST /datasets/{id}/verify`
-Runs the IntegrityGuard check.
-**Response (200)**:
-```json
-{
-  "dataset_id": "osd-211-processed",
-  "match": true,
-  "expected_hash": "a1b2...",
-  "actual_hash": "a1b2...",
-  "alert_block_index": null
-}
-```
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/datasets` | `[Dataset]` |
+| GET | `/datasets/{id}` | `Dataset` |
+| POST | `/datasets/{id}/verify` | `{dataset_id, match, expected_hash, actual_hash, ledger_block, detail, checked_at, verdict}` |
 
-## 3. Orchestration & Runs
+Ids: `env_panel` (REAL covariates, not runnable), `benchmark_track_b` (SIMULATED), `osd-211`, `osd-237` (REAL, NASA OSDR).
+`Dataset = {id, name, track:'A'|'B', kind:'covariates'|'panel'|'factorial', provenance, hash, features_count, samples_count, description, role, runnable, summary{rows,cities,date_start,date_end,…}, qc{…}, ledger_block}`.
 
-### `POST /runs`
-**Request**:
-```json
-{
-  "dataset_id": "osd-211-processed",
-  "stressor_pairs": [["radiation", "hlu"]],
-  "methods": ["continuous", "gbm"],
-  "alpha": 0.05,
-  "force": false
-}
-```
-*Note*: `stressor_pairs` can be `"all"`.
-**Response (202 Accepted)**:
-```json
-{
-  "run_id": "run_123456"
-}
-```
+## Runs (the nine-step pipeline)
 
-### `GET /runs`
-**Response (200)**:
-```json
-[
-  {
-    "run_id": "run_123456",
-    "dataset_id": "osd-211-processed",
-    "status": "COMPLETED",
-    "created_at": 1690000000.0
-  }
-]
-```
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/runs/steps` | `[{step, name, label}]` |
+| POST | `/runs` | body `{dataset_id, quick?, alpha?, n_boot?(49–999), force?}` → 202 `{run_id, reused}`. An identical finished run (same dataset hash + config hash) is returned with `reused:true` unless `force`. 409 if a run for the dataset is already running; 400 if the dataset has no outcome. |
+| GET | `/runs?dataset_id&status` | newest first |
+| GET | `/runs/{id}` | run with `events[]`, `params`, `stage_counts{marginal_bh, after_forward, after_backward}`, `replay{matches, original_hash, replay_hash, seconds}`, `config_hash`, `result_hash`, `ledger_block` |
+| GET | `/runs/{id}/events` | **SSE**. Each message is a `RunEvent`; `event: end` closes the stream. Replayed from the database, so reconnecting is safe. |
 
-### `GET /runs/{id}`
-**Response (200)**: Run object with details.
+`RunEvent = {run_id, step(1–9), step_name, label, status:'RUNNING'|'DONE'|'FAILED', progress(0–1), message, duration_s, ts, data{…}}`.
+Steps: `LOAD_DATA SECURITY_PRECHECK DISCOVERY VALIDATION REPLICATION PROVENANCE SECURITY_POSTCHECK REPRODUCIBILITY_REPLAY FINALIZE`.
+Durations and counts are measured; there are no fixed delays.
 
-### `GET /runs/{id}/events`
-Server-Sent Events (SSE) streaming progress.
-**Stream Format**:
-```text
-data: {"run_id": "run_123456", "step": 3, "status": "DISCOVERY", "progress": 0.45, "message": "Fitting OLS...", "ts": 1690000000.0}
-```
+## Findings
 
-## 4. Findings
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/findings?status&track&type&provenance&dataset_id&q&sort&limit&offset` | `{total, items:[Finding], counts:{CANDIDATE,VALIDATED,VERIFIED,BLOCKED,REJECTED}}` (counts are global, zero when none) |
+| GET | `/findings/{id}` | `Finding` + `dataset`, `run`, `config` |
+| POST | `/findings/{id}/verify` | re-runs **every gate now**: `{id, previous_status, new_status, allowed, reasons[], gates[], verdict}` |
+| GET | `/findings/{id}/surface` | `{a, b, grid_a[30], grid_b[30], z_additive[30][30], z_full[30][30], z_gap[30][30], units, type, provenance}`; 404 for factorial findings |
+| GET | `/findings/{id}/forest` | `{studies:[{name, effect, ci_low, ci_high, unit}], methods, evidence_level}` |
 
-### `GET /findings`
-**Query Params**: `status`, `track`, `type`, `q`, `sort`, `limit`, `offset`
-**Response (200)**:
-```json
-{
-  "total": 1,
-  "items": [
-    {
-      "id": "find_123",
-      "v1": "heat_index",
-      "v2": "pm25",
-      "interaction_type": "SYNERGISTIC",
-      "status": "VALIDATED",
-      "provenance": "SIMULATED",
-      "q_value": 0.001,
-      "effect_size": 0.52
-    }
-  ]
-}
-```
+`Finding = {id, run_id, track, provenance, evidence_level, dataset_id, stressors:[a,b], feature, type:'SYNERGISTIC'|'ANTAGONISTIC'|'NONLINEAR', status, effect{b_AB, ci_low, ci_high, cohens_d, effect_size, eff_ci_low, eff_ci_high}, stats{p, q, n, df, p_naive, p_hac, q_marginal, p_bilinear, p_nonlinear, lambda_boot}, methods{parametric, gbm, nid, gbm_rank, nid_rank}, replication{evidence_level, replicated, replication_rate, halves{}}, security{status, checks[]}, confidence{score, components}, gates[], history[], has_surface}`.
+Finding ids are `sha256(dataset hash, pair, config)[:12]`. `effect_size` and surfaces are in outcome standard deviations.
+Evidence levels: `INDEPENDENT_REPLICATION`, `CROSS_TISSUE_SAME_COHORT`, `INTERNAL_REPLICATION`, `HYPOTHESIS_ONLY`.
 
-### `GET /findings/{id}`
-**Response (200)**: Full evidence bundle including `stats`, `methods`, `replication`, and `confidence`.
+**Gates** (`gates[]`, each `{id, label, passed, reason, integrity}`): `G1_DATA_INTEGRITY`, `G2_LEDGER_CHAIN`, `G3_LEDGER_INCLUSION` (with `merkle_proof`),
+`G4_REPRODUCIBILITY`, `G5_SECURITY_BLOCKING`, `G6_STATISTICAL_VALIDATION`, `G7_INDEPENDENT_REPLICATION`, `G8_REAL_PROVENANCE`.
+`integrity: true` gates (G1–G5) block the result when they fail; G6–G8 only prevent promotion and explain why.
+A SIMULATED finding therefore always shows `G8` failed with “SIMULATED provenance cap”.
 
-### `POST /findings/{id}/verify`
-Re-runs integrity, chain, and replay.
-**Response (200)**:
-```json
-{
-  "id": "find_123",
-  "new_status": "VERIFIED",
-  "reasons": ["Ledger valid", "Replay matched", "No security alerts"]
-}
-```
+## Interactions
 
-### `GET /findings/{id}/surface`
-**Response (200)**:
-```json
-{
-  "v1_grid": [0, 1, 2],
-  "v2_grid": [0, 1, 2],
-  "additive": [[0.0, 0.1, 0.2], [0.1, 0.2, 0.3], [0.2, 0.3, 0.4]],
-  "observed": [[0.0, 0.1, 0.2], [0.1, 0.4, 0.6], [0.2, 0.6, 1.0]],
-  "gap": [[0.0, 0.0, 0.0], [0.0, 0.2, 0.3], [0.0, 0.3, 0.6]]
-}
-```
+| GET `/stressors` | description, unit and group for every stressor |
+|---|---|
+| GET `/interactions/matrix?dataset_id` | `{run_id, stressors[], cells:[{a, b, category:'selected'\|'explained_away'\|'not_significant', type, status, finding_id, effect_size, q_marginal, p_conditional, gbm_rank, nid_rank, methods}], explanation}` |
+| GET `/interactions/network?dataset_id` | `{nodes:[{id,label,group,degree,in_finding}], edges:[{source,target,value,type,status,finding_id}]}` |
 
-### `GET /findings/{id}/forest`
-**Response (200)**:
-```json
-{
-  "studies": [
-    {
-      "name": "OSD-211",
-      "effect": 0.52,
-      "ci_lower": 0.4,
-      "ci_upper": 0.64
-    }
-  ]
-}
-```
+## Space biology (Track A, REAL)
 
-## 5. Interactions & Graphs
+| GET `/space-biology/overview` | `{studies[{id,role,tissue,samples,genes_tested,design_2x2{control,radiation,unloading,both}}], genes_tested, best_q, fdr_line_p, statement, interaction_counts, evidence_level, consistency{…}, power{minimum_detectable_log2_80pct_power, by_log2_effect}, positive_controls, null_calibration, pc1}` |
+|---|---|
+| GET `/space-biology/genes?sort=p\|q\|b_AB&limit&offset&search&compact` | `{total, items:[Gene]}` or, with `compact=true`, `{columns, rows:[[gene, b_AB, neg_log10_p, type, q]]}` for plotting every tested gene |
 
-### `GET /interactions/matrix`
-**Query Params**: `dataset_id`
-**Response (200)**:
-```json
-{
-  "matrix": [
-    ["", "heat_index", "pm25"],
-    ["heat_index", 0.0, 0.52],
-    ["pm25", 0.52, 0.0]
-  ],
-  "types": [
-    ["", "heat_index", "pm25"],
-    ["heat_index", "", "SYNERGISTIC"],
-    ["pm25", "SYNERGISTIC", ""]
-  ]
-}
-```
+## Benchmark and experiments
 
-### `GET /interactions/network`
-**Query Params**: `dataset_id`
-**Response (200)**:
-```json
-{
-  "nodes": [{"id": "heat_index", "group": 1}, {"id": "pm25", "group": 2}],
-  "edges": [{"source": "heat_index", "target": "pm25", "value": 0.52, "type": "SYNERGISTIC"}]
-}
-```
+| GET `/benchmark/results` | the report card exactly as measured: `{available, discovery, null_calibration, moderation, security, limitations[]}`; fields not computed are absent |
+|---|---|
+| GET `/experiments` | every run with `config_hash`, `result_hash`, `ledger_block`, `replay_matches` |
 
-## 6. Space Biology
+## Security
 
-### `GET /space-biology/overview`
-**Response (200)**:
-```json
-{
-  "studies": 2,
-  "samples_total": 42,
-  "interaction_counts": {
-    "SYNERGISTIC": 0,
-    "ANTAGONISTIC": 0
-  }
-}
-```
+| GET `/security/modes` | attack modes: `bit_flip subtle_edit row_edit inject_outliers drift_units poison_labels swap_model ledger_tamper` |
+|---|---|
+| POST `/security/simulate-tamper` | `{dataset_id, mode, magnitude(0.001–0.5), seed}` → `{mode, hash_match, original_hash, tampered_hash, detections[], detectors[], hash_only, verdict, scan_notes, original_untouched, ledger?, model?}`. Works on a temporary copy; rate-limited to 20/min. |
+| GET `/security/false-alarm-rates` | measured clean-data false-alarm rate and attack detection rate per detector |
+| GET `/security/reports` · `/reports/{id}` | per-run scan results |
 
-### `GET /space-biology/genes`
-**Query Params**: `sort`, `limit`
-**Response (200)**:
-```json
-[
-  {
-    "gene_symbol": "CD44",
-    "ensembl_id": "ENSMUSG00000000001",
-    "b_AB": 1.2,
-    "neg_log10_q": 4.5,
-    "type": "SYNERGISTIC",
-    "replicated": true
-  }
-]
-```
+## Risk
 
-## 7. Benchmarks & History
-
-### `GET /benchmark/results`
-Returns exactly the JSON from `benchmark.json`.
-**Response (200)**:
-```json
-{
-  "fdr_decomposition": { },
-  "null_calibration": { },
-  "limitations": ["FDR is not controlled..."]
-}
-```
-
-### `GET /experiments`
-**Response (200)**:
-```json
-[
-  {
-    "run_id": "run_123",
-    "config_hash": "a1b2...",
-    "result_hash": "c3d4...",
-    "status": "COMPLETED"
-  }
-]
-```
-
-## 8. Security & Risk
-
-### `POST /security/simulate-tamper`
-**Request**:
-```json
-{
-  "dataset_id": "env_panel",
-  "mode": "subtle_edit",
-  "magnitude": 0.1
-}
-```
-**Response (200)**:
-```json
-{
-  "mode": "subtle_edit",
-  "hash_match": false,
-  "detections": ["hash_mismatch", "autoencoder"],
-  "verdict": "RESULT BLOCKED FROM VERIFIED STATUS"
-}
-```
-
-### `GET /security/reports/{id}`
-**Response (200)**:
-```json
-{
-  "report_id": "sec_123",
-  "dataset_id": "env_panel",
-  "false_alarm_rates": {
-    "isolation_forest": 0.0,
-    "mcd": 1.0
-  },
-  "checks": [
-    {"name": "isolation_forest", "status": "PASS", "score": 0.0, "detail": ""}
-  ]
-}
-```
-
-### `GET /risk/assessment`
-**Query Params**: `region=Seattle`
-**Response (200)**:
-```json
-{
-  "region": "Seattle",
-  "simulated_only": true,
-  "risk_tier": "HIGH",
-  "interaction_uplift": 0.15,
-  "uncertainty_lower": 0.10,
-  "uncertainty_upper": 0.20,
-  "source_findings": ["find_123"]
-}
-```
+| GET `/risk/regions` | `[{id, lat, lon}]` |
+|---|---|
+| GET `/risk/assessment?region` | `{region, available, simulated_only, banner, source{mode:'live'\|'cached'\|'archive_fallback'}, risk_tier, risk_percentile, interaction_uplift, uncertainty_lower, uncertainty_upper, tier_basis, uncertainty_basis, source_findings[], findings[], forecast[7]{date, additive, modelled, uplift, percentile, tier, stressors}, receipt[{run_id, config_hash, result_hash, ledger_block, replay_matches}]}`. Uses `VALIDATED`/`VERIFIED` findings only; with none, `available:false` and a message, never a made-up tier. |

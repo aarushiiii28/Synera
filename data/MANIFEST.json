@@ -1,30 +1,34 @@
 {
-  "config": {
-    "script_name": "scripts/build_data.py"
-  },
-  "configs_hash": "69c03cdb370d700412a812ae7e3d79a7c929e0c17890684d921044e46104cc98",
-  "dataset_hashes": {
-    "raw_cache": "auto"
-  },
-  "env_versions": {
-    "cryptography": "50.0.1",
-    "numpy": "2.4.6",
-    "pandas": "3.0.6",
-    "python": "3.11.8",
-    "scikit-learn": "1.9.1",
-    "scipy": "1.17.1"
-  },
   "files": {
-    "D:/synera1.0/synera/artifacts/results/diagnostic_2.txt": {
-      "block_index": 25,
-      "kind": "results",
+    "artifacts/results/benchmark.json": {
+      "block_index": 34,
+      "kind": "dataset",
       "meta": {
-        "description": "Part 4 diagnostics 2"
+        "provenance": "SIMULATED",
+        "type": "result"
       },
-      "sha256": "abe866e242b62d11f0f2b0c12f4b52797b24037f7b7c12f17b473a611122af4c"
+      "sha256": "c99067b127c47db387e3009617ff04f7c527d26f7b970be01eed587060253951"
     },
-    "D:/synera1.0/synera/data/processed/env_panel.parquet": {
-      "block_index": 24,
+    "artifacts/results/osdr_genes.json": {
+      "block_index": 13,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "type": "result"
+      },
+      "sha256": "3ae8455f5acb844ba33199849c893e6a9f215756b531b7836669220b6561d31a"
+    },
+    "artifacts/results/space_biology.json": {
+      "block_index": 26,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "type": "result"
+      },
+      "sha256": "3e2c4872317967f0bf23ef443527e8b516b02dfe60ffa8c6b2f02573336e214f"
+    },
+    "data/processed/env_panel.parquet": {
+      "block_index": 0,
       "kind": "dataset",
       "meta": {
         "description": "Environmental stressor panel",
@@ -32,39 +36,150 @@
       },
       "sha256": "638456eaf9bb9d9c59f91bff436939e2ea0df1c08e3aa5ff4ceac907448f70d6"
     },
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_expr.parquet": {
-      "block_index": 0,
+    "data/processed/osdr_OSD-211_expr.parquet": {
+      "block_index": 3,
       "kind": "dataset",
       "meta": {
         "design": "factorial",
-        "study_id": "OSD-999",
+        "provenance": "REAL",
+        "study_id": "OSD-211",
         "type": "expr"
       },
-      "sha256": "22c1d013602a281ee4ccd4054bf1a6155dd51036367a961b64f97975098cb86b"
+      "sha256": "0a7c079900e84c44125df8c8ae33a6607b353849b9b1aaaa1412ac855193c342"
     },
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_meta.parquet": {
+    "data/processed/osdr_OSD-211_meta.parquet": {
+      "block_index": 23,
+      "kind": "dataset",
+      "meta": {
+        "design": "factorial",
+        "provenance": "REAL",
+        "study_id": "OSD-211",
+        "type": "meta"
+      },
+      "sha256": "1d02b938b2b937b2d667753144ef96ce1078256edd327c7d3ea23aa5b115a486"
+    },
+    "data/processed/osdr_OSD-211_qc.json": {
+      "block_index": 5,
+      "kind": "dataset",
+      "meta": {
+        "design": "factorial",
+        "provenance": "REAL",
+        "study_id": "OSD-211",
+        "type": "qc"
+      },
+      "sha256": "09b99b8f9cc0080723ad3c0afc309dc32b751e352cad2cb057e00fcbcf52b606"
+    },
+    "data/processed/osdr_OSD-237_expr.parquet": {
+      "block_index": 8,
+      "kind": "dataset",
+      "meta": {
+        "design": "factorial",
+        "provenance": "REAL",
+        "study_id": "OSD-237",
+        "type": "expr"
+      },
+      "sha256": "11c1ff659dcb91b8d71fdc315359c96470e361f1b27ac8634e3346705a1c1fff"
+    },
+    "data/processed/osdr_OSD-237_meta.parquet": {
+      "block_index": 24,
+      "kind": "dataset",
+      "meta": {
+        "design": "factorial",
+        "provenance": "REAL",
+        "study_id": "OSD-237",
+        "type": "meta"
+      },
+      "sha256": "74cbd0206adbb52d05a936d392f1f64ca8f259b4b1e1d37851dcd56cab5012b6"
+    },
+    "data/processed/osdr_OSD-237_qc.json": {
+      "block_index": 25,
+      "kind": "dataset",
+      "meta": {
+        "design": "factorial",
+        "provenance": "REAL",
+        "study_id": "OSD-237",
+        "type": "qc"
+      },
+      "sha256": "85dc1ae9f0697a6c2e6cfea3e31a394a9a5aafdd15c576d31a06c1df16ca7f51"
+    },
+    "data/raw/manual/osdr/OSD-211/GLDS-211_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv": {
       "block_index": 1,
       "kind": "dataset",
       "meta": {
-        "design": "factorial",
-        "study_id": "OSD-999",
-        "type": "meta"
+        "provenance": "REAL",
+        "study_id": "OSD-211",
+        "type": "raw"
       },
-      "sha256": "8b7d66276a067afd26627adc2b590bc6db9bf3227fb46277face2cd41f061e84"
+      "sha256": "585cfecbf51a569fcc85dc2834cdd65e3eb19f91123006fdc8ce1a1090d983fe"
     },
-    "D:/synera1.0/synera/data/processed/osdr_OSD-999_qc.json": {
+    "data/raw/manual/osdr/OSD-211/OSD-211_metadata_OSD-211-ISA.zip": {
       "block_index": 2,
-      "kind": "qc_report",
+      "kind": "dataset",
       "meta": {
-        "study_id": "OSD-999"
+        "provenance": "REAL",
+        "study_id": "OSD-211",
+        "type": "raw"
       },
-      "sha256": "3c3f566b719474806400096d8d607dc497094e60df66dc233aa49b24eace7adc"
+      "sha256": "a03e6b366911ca244852d9779f7b848b3da0fe5de6bc070b35ae0f7ba3ad6982"
+    },
+    "data/raw/manual/osdr/OSD-237/GLDS-237_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv": {
+      "block_index": 6,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "study_id": "OSD-237",
+        "type": "raw"
+      },
+      "sha256": "5cc13cb8f340fdafd7c9eba0b55583ae8c0af27f88fd9a189aa1b1a8483839d2"
+    },
+    "data/raw/manual/osdr/OSD-237/OSD-237_metadata_OSD-237-ISA.zip": {
+      "block_index": 7,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "study_id": "OSD-237",
+        "type": "raw"
+      },
+      "sha256": "0a2156dd867fa10d5cffd3b39ca0bf5e8382490250caa760e2e87c950d1dc1a3"
+    },
+    "data/reference/mouse_ensembl_symbols.tsv": {
+      "block_index": 11,
+      "kind": "dataset",
+      "meta": {
+        "source": "mygene.info",
+        "type": "reference"
+      },
+      "sha256": "d39258cdb06b12d8dcfdf77f804564696c04b6eea1d0e9c194b7b4e4425b1df3"
+    },
+    "data/reference/ne_110m_admin_0_countries.geojson": {
+      "block_index": 12,
+      "kind": "dataset",
+      "meta": {
+        "source": "Natural Earth 110m",
+        "type": "reference"
+      },
+      "sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f"
+    },
+    "data/synthetic/benchmark_snr2.0_seed20260929.parquet": {
+      "block_index": 15,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "SIMULATED",
+        "seed": 20260929,
+        "snr": 2.0
+      },
+      "sha256": "dc0e90b589265950771396394b3cacc3a0a286aa22079b21a9b7bf4a4e73ed5e"
+    },
+    "data/synthetic/benchmark_truth_snr2.0_seed20260929.json": {
+      "block_index": 16,
+      "kind": "dataset",
+      "meta": {
+        "seed": 20260929,
+        "type": "truth"
+      },
+      "sha256": "378618e4a4b3ea731aee40eb079cd159ec5897c73ad3894b512f9f6b0be46cda"
     }
   },
-  "generated_at": "2026-10-13T17:05:44.597087+00:00",
-  "git_commit": "4d721f284c4fb688b4ef2a4de3f2c0692e01f79f",
-  "model_hashes": {},
-  "pyproject_hash": "dc1e45dfc2e33ff2f70fcd56750a950cf1279a9120a52642fb0353c5ba7df292",
-  "seed": 42,
-  "src_tree_hash": "8e4b59a33eb7282fedbf5d06ef8d71c2c25ba2431da0acdea05aeb53a38bf341"
+  "generated_at": "2026-10-15T08:07:41.001447+00:00",
+  "version": "1.0.0"
 }

@@ -1,56 +1,68 @@
-# SYNERA Dataset Registry
-# Schema:
-#   id: str
-#   track: "A" | "B" | "C"
-#   title: str
-#   source: str
-#   provenance: "REAL" | "SIMULATED"
-#   files: list[str]
-#   design: "factorial" | "continuous"
-#   stressors: list[str]
-#   outcome: str
-#   status: "REGISTERED" | "INGESTED" | "VALIDATED"
-
-discovery: "OSD-211"
-replication: "OSD-237"
+# SYNERA dataset registry (configuration). The runtime registry is synera_core.pipeline.registry.
+#   id, track (A|B|C), title, source, provenance (REAL|SIMULATED), files[], design (factorial|continuous), stressors[], outcome, status
+discovery: "OSD-211"      # Track A discovery study (spleen)
+replication: "OSD-237"    # Track A replication tissue (skin): same animals -> CROSS_TISSUE_SAME_COHORT
 
 datasets:
-  - id: "osdr_space_radiation_microgravity"
+  - id: "osd-211"
     track: "A"
-    title: "Space Biology Testbed: Radiation x Microgravity Omics"
-    source: "NASA Open Science Data Repository (OSDR) / GeneLab"
+    title: "NASA OSDR OSD-211: spleen RNA-seq, chronic low-dose radiation x hindlimb unloading"
+    source: "NASA Open Science Data Repository / GeneLab (files placed manually in data/raw/manual/osdr/OSD-211)"
     provenance: "REAL"
-    files: []
+    files:
+      - "data/raw/manual/osdr/OSD-211/GLDS-211_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv"
+      - "data/raw/manual/osdr/OSD-211/OSD-211_metadata_OSD-211-ISA.zip"
+      - "data/processed/osdr_OSD-211_expr.parquet"
+      - "data/processed/osdr_OSD-211_meta.parquet"
     design: "factorial"
-    stressors:
-      - "spaceflight_microgravity"
-      - "ionizing_radiation"
-    outcome: "transcriptomic_log2fc"
-    status: "REGISTERED"
+    stressors: ["ionizing_radiation", "hindlimb_unloading"]
+    tissue: "Spleen"
+    outcome: "log2 normalised expression (24,688 genes after the independent low-expression filter)"
+    status: "INGESTED"
 
-  - id: "benchmark_planted_interactions"
+  - id: "osd-237"
+    track: "A"
+    title: "NASA OSDR OSD-237: skin RNA-seq from the same animals"
+    source: "NASA Open Science Data Repository / GeneLab"
+    provenance: "REAL"
+    files:
+      - "data/raw/manual/osdr/OSD-237/GLDS-237_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv"
+      - "data/raw/manual/osdr/OSD-237/OSD-237_metadata_OSD-237-ISA.zip"
+      - "data/processed/osdr_OSD-237_expr.parquet"
+      - "data/processed/osdr_OSD-237_meta.parquet"
+    design: "factorial"
+    stressors: ["ionizing_radiation", "hindlimb_unloading"]
+    tissue: "Skin"
+    outcome: "log2 normalised expression (25,716 genes after the independent low-expression filter)"
+    status: "INGESTED"
+
+  - id: "env_panel"
     track: "B"
-    title: "Engine Benchmark: Planted Interaction Testbed"
-    source: "Synthetic Generator on Real Covariates"
-    provenance: "SIMULATED"
-    files: []
+    title: "Environmental stressor panel: 8 cities x 518 days"
+    source: "Open-Meteo historical weather and air-quality archives"
+    provenance: "REAL"
+    files: ["data/processed/env_panel.parquet"]
     design: "continuous"
-    stressors:
-      - "stressor_alpha"
-      - "stressor_beta"
-    outcome: "interaction_response"
-    status: "REGISTERED"
+    stressors: ["heat_index", "pm25", "pm10", "o3", "no2", "rh", "drought_index", "uv", "wind", "precip"]
+    outcome: "none (covariates only)"
+    status: "INGESTED"
 
-# - id: "climate_heat_pm25_ozone"
+  - id: "benchmark_track_b"
+    track: "B"
+    title: "Engine benchmark: planted interactions on the real covariates"
+    source: "synera_core.benchmark.generator (deterministic; seed 20260929, SNR 2.0)"
+    provenance: "SIMULATED"
+    files: ["data/synthetic/benchmark_snr2.0_seed20260929.parquet"]
+    design: "continuous"
+    stressors: ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    outcome: "simulated outcome with planted synergistic, antagonistic and non-linear interactions"
+    status: "INGESTED"
+
+# Track C (optional, only if real health-outcome data is supplied): the adapter interface is
+# synera_core.data.health.HealthOutcomeAdapter. Example: CDC NCHS weekly respiratory deaths joined to Open-Meteo.
+# - id: "climate_health"
 #   track: "C"
-#   title: "Climate-Health: Heat x PM2.5 x Ozone Interaction"
-#   source: "Open-Meteo / EPA Ground Monitoring"
 #   provenance: "REAL"
-#   files: []
 #   design: "continuous"
-#   stressors:
-#     - "temperature_celsius"
-#     - "pm25_ug_m3"
-#     - "ozone_ppb"
-#   outcome: "health_risk_index"
-#   status: "REGISTERED"
+#   stressors: ["heat_index", "pm25", "o3"]
+#   outcome: "weekly respiratory deaths"

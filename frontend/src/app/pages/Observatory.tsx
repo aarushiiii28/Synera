@@ -1,125 +1,117 @@
-import React, { Suspense } from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
-import { fetchHealth, fetchFindings } from '../../lib/api';
-import { motion } from 'framer-motion';
+import { lazy, Suspense } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api';
+import { useFindings, useHealth, useReducedMotion } from '../../lib/hooks';
+import { useUI } from '../../store';
+import { EarthStatic } from '../../components/EarthStatic';
+import { Readout } from '../../components/Readout';
+import { Term } from '../../components/Term';
+import { int } from '../../lib/format';
 
-const Globe = React.lazy(() => import('../../components/Globe'));
+const Earth = lazy(() => import('../../components/Earth'));
 
-function DataPacket({ delay = 0, duration = 4 }) {
-  return (
-    <motion.div
-      className="absolute top-[-1px] left-0 w-8 h-[2px] bg-gradient-to-r from-transparent via-signal to-transparent z-10"
-      initial={{ left: '-5%' }}
-      animate={{ left: '105%' }}
-      transition={{
-        duration,
-        ease: 'linear',
-        repeat: Infinity,
-        delay,
-      }}
-    />
-  );
-}
+const STAGES = [
+  { key: 'discover', n: '01', title: 'DISCOVER', to: '/discovery', tone: 'var(--signal)', text: 'AI screens every pair of stressors for hidden interactions.' },
+  { key: 'validate', n: '02', title: 'VALIDATE', to: '/findings', tone: 'var(--teal)', text: 'Statistics decide what survives: FDR, effect size, intervals, a second method.' },
+  { key: 'verify', n: '03', title: 'VERIFY', to: '/trust', tone: 'var(--biosphere)', text: 'Every step is fingerprinted and chained in a signed ledger.' },
+  { key: 'act', n: '04', title: 'ACT', to: '/risk', tone: 'var(--solar)', text: 'Validated interactions become a compound-risk brief for a city.' },
+];
 
-function WorkflowStrip({ counts, isOffline, height }: { counts: Record<string, number>, isOffline: boolean, height: number }) {
-  const steps = [
-    { id: 'candidates', label: 'CANDIDATES', val: counts.candidates },
-    { id: 'validated', label: 'VALIDATED', val: counts.validated },
-    { id: 'verified', label: 'VERIFIED', val: counts.verified },
-    { id: 'act', label: 'BLOCKED', val: counts.blocked },
-  ];
-
-  return (
-    <div className="absolute bottom-16 left-8 right-8 lg:left-16 lg:right-[40%] flex items-end">
-      <div className="w-full flex justify-between relative border-t border-line pt-4 overflow-hidden">
-        {!isOffline && (
-          <>
-            <DataPacket delay={0} />
-            <DataPacket delay={2.5} duration={3} />
-          </>
-        )}
-        {steps.map((s) => (
-          <div key={s.id} className="flex flex-col gap-1 relative z-20">
-            <div className="absolute -top-[19px] left-0 w-1.5 h-1.5 bg-line rounded-full" />
-            <div className="font-mono text-[10px] tracking-widest text-muted uppercase">{s.label}</div>
-            <div className={`font-mono text-xl ${isOffline ? 'text-alert' : 'text-text'}`}>
-              {isOffline ? '---' : s.val}
-            </div>
-          </div>
-        ))}
-        <div className="flex flex-col gap-1 relative z-20 items-end">
-          <div className="font-mono text-[10px] tracking-widest text-muted uppercase">LEDGER HEIGHT</div>
-          <div className={`font-mono text-xl ${isOffline ? 'text-alert' : 'text-signal'}`}>
-            {isOffline ? '---' : height}
-          </div>
-        </div>
-      </div>
-      
-      {isOffline && (
-        <div className="absolute -top-12 left-0 text-alert font-mono text-xs tracking-widest flex items-center gap-2">
-          <span className="w-2 h-2 bg-alert rounded-full animate-pulse" />
-          SIGNAL LOST
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function Observatory() {
-  const { data: health, isError: isHealthError } = useQuery({
-    queryKey: ['health'],
-    queryFn: fetchHealth,
-    refetchInterval: 10000
-  });
-
-  const queries = useQueries({
-    queries: [
-      { queryKey: ['findings', 'CANDIDATE'], queryFn: () => fetchFindings({ status: 'CANDIDATE', limit: '1' }), refetchInterval: 10000 },
-      { queryKey: ['findings', 'VALIDATED'], queryFn: () => fetchFindings({ status: 'VALIDATED', limit: '1' }), refetchInterval: 10000 },
-      { queryKey: ['findings', 'VERIFIED'], queryFn: () => fetchFindings({ status: 'VERIFIED', limit: '1' }), refetchInterval: 10000 },
-      { queryKey: ['findings', 'BLOCKED'], queryFn: () => fetchFindings({ status: 'BLOCKED', limit: '1' }), refetchInterval: 10000 },
-    ]
-  });
-
-  const isOffline = isHealthError || (!health && !isHealthError);
-  const height = health?.ledger?.height || 0;
-  
-  // Track B capped at validated. Verified = 0 if no real findings exist.
-  const safeCounts = {
-    candidates: queries[0].data?.total || 0,
-    validated: queries[1].data?.total || 0,
-    verified: queries[2].data?.total || 0,
-    blocked: queries[3].data?.total || 0,
+function PipelineStrip() {
+  const reduced = useReducedMotion();
+  const f = useFindings({ limit: 1 });
+  const h = useHealth();
+  const regionCount = useQuery({ queryKey: ['regions'], queryFn: api.riskRegions, staleTime: Infinity }).data?.length;
+  const c = f.data?.counts;
+  const total = f.data ? Object.values(f.data.counts).reduce((a, b) => a + b, 0) : null;
+  const offline = f.isError || h.isError;
+  const vals: Record<string, { v: number | null | undefined; unit: string; sub?: string }> = {
+    discover: { v: total, unit: 'findings in the registry', sub: 'survived conditional selection' },
+    validate: { v: c ? c.VALIDATED + c.VERIFIED : null, unit: 'validated', sub: `${c?.REJECTED ?? '—'} rejected · ${c?.CANDIDATE ?? '—'} candidate` },
+    verify: { v: c?.VERIFIED, unit: 'verified', sub: `${c?.BLOCKED ?? '—'} blocked · ledger ${h.data ? int(h.data.ledger.height) : '—'} blocks` },
+    act: { v: regionCount, unit: 'regions with a brief', sub: 'simulated demonstration' },
   };
-
   return (
-    <div className="w-full h-full relative overflow-hidden">
-      <div className="absolute right-[-20%] bottom-[-20%] w-[80%] h-[120%] z-0 pointer-events-none">
-        <Suspense fallback={<div className="w-full h-full rounded-full border border-line bg-void/50 backdrop-blur-sm" />}>
-          <Globe />
-        </Suspense>
+    <section aria-label="Pipeline" className="relative px-6 md:px-10 pb-10">
+      <div className="relative">
+        <svg className="absolute left-0 right-0 top-[22px] w-full h-2 hidden md:block" preserveAspectRatio="none" viewBox="0 0 100 2" aria-hidden>
+          <line x1="0" y1="1" x2="100" y2="1" stroke="var(--line-strong)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          {!reduced && [0, 1, 2].map((i) => (
+            <circle key={i} r="0.5" cy="1" fill="var(--signal)">
+              <animate attributeName="cx" from="0" to="100" dur="9s" begin={`${i * 3}s`} repeatCount="indefinite" />
+            </circle>
+          ))}
+        </svg>
+        <ol className="relative grid md:grid-cols-4 gap-8 m-0 p-0 list-none">
+          {STAGES.map((s) => (
+            <li key={s.key}>
+              <Link to={s.to} className="group block">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="grid place-items-center w-11 h-11 rounded-full border bg-void num text-sm" style={{ borderColor: s.tone, color: s.tone, boxShadow: `0 0 18px -6px ${s.tone}` }}>{s.n}</span>
+                  <span className="display font-semibold tracking-[0.12em] text-sm group-hover:underline" style={{ color: s.tone }}>{s.title}</span>
+                </div>
+                <p className="text-sm text-muted leading-snug mb-4 min-h-[2.6rem] max-w-[17rem]">{s.text}</p>
+                {offline ? (
+                  <div className="num text-xs text-alert tracking-[0.14em]">SIGNAL LOST</div>
+                ) : (
+                  <Readout label={vals[s.key].unit} value={vals[s.key].v} hint={vals[s.key].sub} tone={s.key === 'verify' ? 'biosphere' : s.key === 'act' ? 'solar' : s.key === 'validate' ? 'teal' : 'signal'} />
+                )}
+              </Link>
+            </li>
+          ))}
+        </ol>
       </div>
-      
-      
+    </section>
+  );
+}
 
-      <div className="relative z-10 w-full h-full flex flex-col justify-between p-8 lg:p-16 pointer-events-none">
-        <div className="max-w-[45%] pointer-events-auto">
-          <h1 className="font-display font-semibold text-[32px] lg:text-[56px] leading-[1.1] uppercase tracking-tight text-text text-balance">
-            THE ENVIRONMENT DOESN'T CHANGE <span className="font-accent italic font-normal text-[1.1em] text-white lowercase">one variable</span> AT A TIME.
+export default function Observatory() {
+  const reduced = useReducedMotion();
+  const startTour = useUI((s) => s.startTour);
+  return (
+    <div>
+      <section className="relative overflow-hidden min-h-[calc(100vh-3rem)] lg:min-h-[640px]">
+        {/* Planet bleeds off the right edge */}
+        <div className="absolute pointer-events-none lg:pointer-events-auto right-[-40%] top-[4%] w-[110vmin] max-w-[1200px] aspect-square opacity-80 lg:opacity-100 lg:right-[-14%] lg:top-[0%] lg:w-[104vmin]">
+          <Suspense fallback={<EarthStatic className="w-full" />}>
+            <Earth reduced={reduced} className="absolute inset-0" />
+          </Suspense>
+        </div>
+
+        <div className="relative z-10 px-6 md:px-10 pt-14 md:pt-20 pb-16 lg:max-w-[44%]">
+          <div className="label !text-biosphere mb-5 rise">Trusted AI for multi-stressor environmental intelligence</div>
+          <h1 className="display font-semibold uppercase m-0 rise text-[clamp(2.1rem,3.7vw,3.9rem)] leading-[1.04]" style={{ animationDelay: '80ms' }}>
+            The environment doesn’t change <span className="serif normal-case font-normal text-sun" style={{ fontSize: '1.08em' }}>one variable</span> at a time
           </h1>
-          <p className="mt-6 text-muted font-sans text-lg max-w-md leading-relaxed">
-            See how multiple stressors <span className="text-signal font-mono uppercase tracking-widest text-xs">interact</span> to compound biological risk.
+          <p className="mt-6 text-lg text-muted max-w-xl leading-relaxed rise" style={{ animationDelay: '160ms' }}>
+            Heat, air pollution, drought, weather and radiation act <span className="text-signal">together</span>. The unknown isn’t just the stressor, it is what happens when stressors <Term k="interaction">interact</Term>.
+            SYNERA finds those interactions with AI, tests them with statistics, and proves what it did with a tamper-evident ledger.
           </p>
-        </div>
-
-        <div className="mt-auto pb-24 pointer-events-auto">
-          <div className="font-display text-[10px] tracking-[0.2em] text-faint mb-12">
-            AI GENERATES HYPOTHESES. SCIENCE VALIDATES THEM.
+          <div className="mt-8 flex flex-wrap gap-3 rise" style={{ animationDelay: '240ms' }}>
+            <button onClick={startTour} className="num text-sm tracking-[0.1em] px-5 py-3 border border-signal bg-signal/10 text-signal hover:bg-signal/20">▶ TAKE THE 3-MINUTE TOUR</button>
+            <Link to="/discovery" className="num text-sm tracking-[0.1em] px-5 py-3 border border-line-strong text-text hover:border-text">RUN THE ENGINE →</Link>
           </div>
+          <p className="mt-10 display text-sm tracking-[0.2em] uppercase text-text/80">AI generates hypotheses. <span className="text-biosphere">Science validates them.</span></p>
         </div>
-      </div>
-      
-      <WorkflowStrip counts={safeCounts} isOffline={isOffline} height={height} />
+      </section>
+
+      <PipelineStrip />
+
+      <section className="px-6 md:px-10 pb-16 grid md:grid-cols-3 gap-8 border-t border-line pt-10">
+        {[
+          { t: 'Track A · REAL', c: 'text-biosphere', d: 'NASA space-biology data: radiation × hindlimb unloading in mouse spleen and skin. Small samples, honest limits.', to: '/space-biology' },
+          { t: 'Track B · SIMULATED', c: 'text-solar', d: 'Real weather and air-quality covariates with a planted, known interaction outcome. It measures how good the engine is.', to: '/benchmark' },
+          { t: 'The trust layer', c: 'text-signal', d: 'SHA-256 fingerprints, anomaly detection, a signed hash-chained ledger and a replay of every run.', to: '/trust' },
+        ].map((x) => (
+          <Link key={x.t} to={x.to} className="group block border-t border-line-strong pt-4">
+            <div className={`num text-xs tracking-[0.16em] mb-2 ${x.c}`}>{x.t}</div>
+            <p className="text-sm text-muted leading-relaxed m-0 group-hover:text-text">{x.d}</p>
+          </Link>
+        ))}
+      </section>
     </div>
   );
 }
+
+

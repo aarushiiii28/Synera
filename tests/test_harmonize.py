@@ -1,14 +1,11 @@
-import os
 import json
 import zipfile
 import pytest
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
 from synera_core.data.harmonize import harmonize_osdr
 from synera_core.provenance.ledger import Ledger
-from synera_core.config import find_repo_root
 
 @pytest.fixture
 def mock_ledger(tmp_path):
@@ -56,22 +53,43 @@ def test_harmonize_osdr_with_fixtures(tmp_path, mock_ledger):
     with zipfile.ZipFile(isa_path, 'w') as zf:
         zf.writestr("s_OSD-999.txt", s_txt)
         
-    # Run harmonization
-    # Make sure we don't accidentally read manual files by using a fake study ID
-    expr_out, meta_out, qc_out = harmonize_osdr("OSD-999", counts_path, isa_path, mock_ledger)
-    
-    assert expr_out.exists()
-    assert meta_out.exists()
-    assert qc_out.exists()
-    
+    # Run harmonization into a temporary directory (never into the real data/processed).
+    # A fake study id guarantees no manual files are picked up.
+    out_dir = tmp_path / "data" / "processed"
+    expr_out, meta_out, qc_out = harmonize_osdr(
+        "OSD-999", counts_path, isa_path, mock_ledger, out_dir=out_dir, raw_root=tmp_path / "no_manual",
+    )
+
+    assert expr_out.parent == out_dir
+    assert expr_out.exists() and meta_out.exists() and qc_out.exists()
+
     out_expr = pd.read_parquet(expr_out)
     out_meta = pd.read_parquet(meta_out)
-    
-    # shape check
-    assert out_expr.shape == (5, 21)
+
+    # The filter drops low-expression genes; every kept gene comes from the input file.
+    assert out_expr.shape[1] == 21
+    assert set(out_expr.index) <= set(expr_df.index)
     assert len(out_meta) == 21
-    
+    assert out_meta["provenance"].eq("REAL").all()
+
     with open(qc_out, "r") as f:
         qc = json.load(f)
-    assert qc["shape"] == "21 samples x 5 genes"
-    assert qc["evidence_level"] == "VALIDATED"
+    assert qc["n_per_cell"] == {"rad=0,hlu=0": 6, "rad=1,hlu=0": 6, "rad=0,hlu=1": 3, "rad=1,hlu=1": 6}
+    assert "evidence_level" not in qc
+
+
+def test_harmonize_rejects_thin_cells(tmp_path, mock_ledger):
+    names = [f"S_C_{i}" for i in range(4)] + [f"S_H_{i}" for i in range(4)] + [f"S_R_{i}" for i in range(4)] + ["S_B_0"]
+    pd.DataFrame(np.random.rand(5, len(names)) * 100, index=[f"ENSMUSG0000000000{i}" for i in range(5)], columns=names) \
+        .to_csv(tmp_path / "GLDS-998_rna_seq_Normalized_Counts_GLbulkRNAseq.csv")
+    s_txt = "Source Name\tSample Name\tFactor Value[Hindlimb Unloading]\tFactor Value[Ionizing Radiation]\n"
+    for s in names:
+        hlu = "Hindlimb Unloaded" if ("_H_" in s or "_B_" in s) else "Normally Loaded Control"
+        rad = "gamma" if ("_R_" in s or "_B_" in s) else "non-irradiated"
+        s_txt += f"Source\t{s}\t{hlu}\t{rad}\n"
+    with zipfile.ZipFile(tmp_path / "OSD-998_metadata_OSD-998-ISA.zip", "w") as zf:
+        zf.writestr("s_OSD-998.txt", s_txt)
+    with pytest.raises(ValueError, match="every 2x2 cell"):
+        harmonize_osdr("OSD-998", tmp_path / "GLDS-998_rna_seq_Normalized_Counts_GLbulkRNAseq.csv",
+                       tmp_path / "OSD-998_metadata_OSD-998-ISA.zip", mock_ledger,
+                       out_dir=tmp_path / "data" / "processed", raw_root=tmp_path / "no_manual")

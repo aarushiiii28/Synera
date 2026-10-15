@@ -1,15 +1,21 @@
 import { create } from 'zustand';
 
-interface AppState {
-  selectedDataset: string | null;
-  setSelectedDataset: (id: string | null) => void;
+interface UI {
+  tourStep: number | null;
+  startTour: () => void;
+  goTour: (n: number | null) => void;
   selectedPair: [string, string] | null;
-  setSelectedPair: (pair: [string, string] | null) => void;
+  selectPair: (p: [string, string] | null) => void;
+  railOpen: boolean;
+  setRailOpen: (v: boolean) => void;
 }
 
-export const useStore = create<AppState>((set) => ({
-  selectedDataset: 'env_panel', // default
-  setSelectedDataset: (id) => set({ selectedDataset: id }),
+export const useUI = create<UI>((set) => ({
+  tourStep: null,
+  startTour: () => set({ tourStep: 0 }),
+  goTour: (n) => set({ tourStep: n }),
   selectedPair: null,
-  setSelectedPair: (pair) => set({ selectedPair: pair }),
+  selectPair: (p) => set({ selectedPair: p }),
+  railOpen: false,
+  setRailOpen: (v) => set({ railOpen: v }),
 }));

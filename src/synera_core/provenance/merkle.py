@@ -10,9 +10,9 @@ def _leaf(h_hex: str) -> bytes:
     return hashlib.sha256(b"\x00" + bytes.fromhex(h_hex)).digest()
 
 
-def _node(l: bytes, r: bytes) -> bytes:
+def _node(left: bytes, r: bytes) -> bytes:
     """Domain-separated internal node hashing (0x01 prefix) to prevent second-preimage attacks."""
-    return hashlib.sha256(b"\x01" + l + r).digest()
+    return hashlib.sha256(b"\x01" + left + r).digest()
 
 
 def merkle_root(hashes: list[str]) -> str:

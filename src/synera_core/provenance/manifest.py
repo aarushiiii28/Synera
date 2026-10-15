@@ -9,8 +9,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from synera_core.config import find_repo_root
 from synera_core.provenance.hashing import sha256_file, sha256_obj
 from synera_core.provenance.ledger import Block, Ledger
+
+
+def default_manifest_path() -> Path:
+    """``<repo>/data/MANIFEST.json`` regardless of the current working directory."""
+    return find_repo_root() / "data" / "MANIFEST.json"
 
 
 def register_file(
@@ -18,7 +24,7 @@ def register_file(
     path: str | Path,
     kind: str = "dataset",
     meta: dict[str, Any] | None = None,
-    manifest_path: str | Path = "data/MANIFEST.json",
+    manifest_path: str | Path | None = None,
 ) -> tuple[str, Block]:
     """Compute sha256 of file, append registration block to ledger, and update manifest.
 
@@ -39,6 +45,13 @@ def register_file(
         raise FileNotFoundError(f"File not found: {file_path}")
 
     file_hash = sha256_file(file_path)
+    manifest_path = Path(manifest_path) if manifest_path else default_manifest_path()
+    # Portable key: path relative to the manifest's repository root when the file lives under it.
+    m_root = manifest_path.resolve().parent.parent
+    try:
+        file_key = file_path.resolve().relative_to(m_root).as_posix()
+    except ValueError:
+        file_key = file_path.as_posix()
 
     # Determine canonical block type
     if kind.upper() in ("MODEL", "MODEL_REGISTERED"):
@@ -52,7 +65,7 @@ def register_file(
         block = existing[0][0]
     else:
         payload = {
-            "path": file_path.as_posix(),
+            "path": file_key,
             "sha256": file_hash,
             "kind": kind,
             "meta": meta or {},
@@ -83,7 +96,7 @@ def register_file(
                 "files": {},
             }
 
-    manifest_data["files"][file_path.as_posix()] = {
+    manifest_data["files"][file_key] = {
         "sha256": file_hash,
         "kind": kind,
         "block_index": block.index,
@@ -100,14 +113,14 @@ def register_file(
 
 def verify_manifest(
     ledger: Ledger,
-    manifest_path: str | Path = "data/MANIFEST.json",
+    manifest_path: str | Path | None = None,
 ) -> list[dict[str, Any]]:
     """Verify each manifest entry against on-disk file hash AND ledger record.
 
     Returns:
         List of dicts: {path, expected, actual, ok, ledger_block}
     """
-    m_path = Path(manifest_path)
+    m_path = Path(manifest_path) if manifest_path else default_manifest_path()
     if not m_path.is_file():
         return []
 
@@ -124,6 +137,8 @@ def verify_manifest(
             expected = str(val)
 
         p = Path(path_str)
+        if not p.is_absolute():
+            p = m_path.resolve().parent.parent / p
         if p.is_file():
             actual: str | None = sha256_file(p)
         else:

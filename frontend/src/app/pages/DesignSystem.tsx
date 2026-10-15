@@ -1,59 +1,44 @@
-import React from 'react';
-import { Panel } from '../../components/Panel';
+import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from '../../components/StatusChip';
+import { ProvenanceTag, EvidenceTag } from '../../components/Provenance';
 import { HashRing } from '../../components/HashRing';
 import { Readout } from '../../components/Readout';
-import { OrbitProgress } from '../../components/OrbitProgress';
-import { Caveat } from '../../components/Caveat';
+import { Panel } from '../../components/Panel';
+import { Caveat, Explainer } from '../../components/Explainer';
+import { Term } from '../../components/Term';
+import { Skeleton, EmptyState } from '../../components/States';
+import type { Status } from '../../lib/api';
 
-export function DesignSystem() {
-  const sampleZeroHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-  
+const SPECIMEN_HASH = 'a7f39c0d41be5e82fa09cd13b6e7742a91d05fbc28e3a4d6710b9ce85d2f43a1';
+const STATUSES: Status[] = ['CANDIDATE', 'VALIDATED', 'VERIFIED', 'BLOCKED', 'REJECTED'];
+
+/** Dev-only specimen sheet. Every number here is labelled SPECIMEN, NOT DATA. */
+export default function DesignSystem() {
   return (
-    <div className="p-8 pb-32">
-      <h1 className="font-display text-4xl text-text uppercase tracking-tight mb-8">Design System Overview</h1>
-      
-      <div className="grid grid-cols-2 gap-8">
-        <Panel indexLabel="01 / PANELS & READOUTS" provenance="REAL">
-          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
-          <div className="flex gap-12 mt-4">
-            <Readout value={12000} caption="FEATURES TESTED" />
-            <Readout value={0.523} format="float" caption="MAX EFFECT" delta="+0.12" />
-            <Readout value={0.99} format="percent" caption="CONFIDENCE" />
+    <div>
+      <PageHeader index="DS" title="Design system" standfirst="Every component in every state. All values on this page are specimens, not data." />
+      <div className="px-6 md:px-10 pb-16 grid gap-10 max-w-5xl">
+        <Panel variant="ruled" title="Readouts · SPECIMEN, NOT DATA">
+          <div className="flex flex-wrap gap-10">
+            <Readout label="Count" value={1240} tone="signal" />
+            <Readout label="Ratio" value={0.523} decimals={3} />
+            <Readout label="Verified" value={0} tone="biosphere" hint="Zero is shown as zero." />
           </div>
         </Panel>
-
-        <Panel indexLabel="02 / STATUS CHIPS">
-          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
-          <div className="flex flex-col gap-4 mt-4">
-            <StatusChip status="CANDIDATE" />
-            <StatusChip status="VALIDATED" />
-            <StatusChip status="VERIFIED" />
-            <StatusChip status="BLOCKED" />
-            <StatusChip status="REJECTED" />
-          </div>
-        </Panel>
-
-        <Panel indexLabel="03 / HASH RING">
-          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
-          <div className="mt-4 flex gap-8 items-center">
-            <HashRing hash={sampleZeroHash} size={64} />
-            <HashRing hash="b6589fc6ab0dc82cf12099d1c2d40ab994e8410cceeb868019a86a6358db3e84" size={120} />
-          </div>
-        </Panel>
-
-        <Panel indexLabel="04 / PROGRESS & CAVEAT" provenance="SIMULATED">
-          <div className="text-[10px] text-muted mb-4 tracking-widest">SPECIMEN, NOT DATA</div>
-          <div className="mt-4 flex flex-col gap-8">
-            <div className="flex items-center gap-8">
-              <OrbitProgress size={80} progress={0.45} />
-              <OrbitProgress size={80} progress={1.0} />
-            </div>
-            <Caveat>
-              VERIFIED = statistically validated with verified provenance, not biological proof. Track B findings cap at VALIDATED.
-            </Caveat>
-          </div>
-        </Panel>
+        <div className="grid md:grid-cols-2 gap-10">
+          <Panel title="Status chips" variant="bracketed">
+            <ul className="m-0 p-0 list-none grid gap-3">{STATUSES.map((s) => <li key={s}><StatusChip status={s} large /></li>)}</ul>
+          </Panel>
+          <Panel title="Provenance and evidence" variant="inset">
+            <div className="grid gap-3"><ProvenanceTag provenance="REAL" /><ProvenanceTag provenance="SIMULATED" />
+              <EvidenceTag level="CROSS_TISSUE_SAME_COHORT" /><EvidenceTag level="INDEPENDENT_REPLICATION" /><EvidenceTag level="INTERNAL_REPLICATION" /><EvidenceTag level="HYPOTHESIS_ONLY" /></div>
+          </Panel>
+        </div>
+        <Panel title="Hash fingerprint · SPECIMEN HASH" variant="bare"><HashRing hash={SPECIMEN_HASH} size={64} label="sha256" /></Panel>
+        <Explainer>A <Term k="fdr">false discovery rate</Term> of 5% means about one in twenty discoveries is expected to be a false alarm.</Explainer>
+        <div className="grid gap-2"><Caveat kind="SIMULATED" /><Caveat kind="CROSS_TISSUE_SAME_COHORT" /><Caveat kind="VERIFIED_MEANING" /><Caveat kind="POWER" /></div>
+        <Skeleton h={80} />
+        <EmptyState title="Nothing here yet">Designed empty state with a one-line explanation.</EmptyState>
       </div>
     </div>
   );

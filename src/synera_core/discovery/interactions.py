@@ -2,8 +2,41 @@
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+from scipy import special, stats
 from typing import Sequence
+
+def _trigamma_inverse(x: float) -> float:
+    """Solve trigamma(y) = x for y (Newton iterations, as in limma)."""
+    y = 0.5 + 1.0 / x
+    for _ in range(50):
+        tri = float(special.polygamma(1, y))
+        dif = tri * (1 - tri / x) / float(special.polygamma(2, y))
+        y += dif
+        if -dif / y < 1e-8:
+            break
+    return y
+
+
+def estimate_prior(s2: np.ndarray, df: float) -> tuple[float, float]:
+    """Empirical-Bayes prior ``(d0, s0^2)`` for gene-wise residual variances (scaled inverse chi-square).
+
+    Method of moments on ``log s^2`` (Smyth 2004). ``d0 == inf`` means the variances are no more
+    dispersed than sampling noise explains, so a single pooled variance is the best prior.
+    """
+    s = np.asarray(s2, float)
+    s = s[np.isfinite(s) & (s > 0)]
+    if len(s) < 3:
+        return 0.0, float(np.nanmedian(s)) if len(s) else 1.0
+    z = np.log(s)
+    e = z - special.digamma(df / 2) + np.log(df / 2)
+    emean = float(e.mean())
+    evar = float(e.var(ddof=1)) - float(special.polygamma(1, df / 2))
+    if evar > 0:
+        d0 = 2.0 * _trigamma_inverse(evar)
+        s0sq = float(np.exp(emean + special.digamma(d0 / 2) - np.log(d0 / 2)))
+        return d0, s0sq
+    return float("inf"), float(np.exp(emean))
+
 
 def factorial_interaction(
     Y: pd.DataFrame,
@@ -11,7 +44,7 @@ def factorial_interaction(
     a: str,
     b: str,
     covariates: Sequence[str] = (),
-    moderate: bool = True,
+    moderate: bool | str = True,
     prior_df: float = 4.0
 ) -> pd.DataFrame:
     """
@@ -65,11 +98,22 @@ def factorial_interaction(
     # residual variance per feature
     s2 = (resid ** 2).sum(axis=0) / df_res
     
-    if moderate:
-        # Simplified empirical Bayes (limma approximation)
+    prior_used = 0.0
+    if moderate == "estimate":
+        # Data-estimated prior (method of moments on log s^2, as in limma::squeezeVar)
+        d0, s0sq = estimate_prior(s2, df_res)
+        if np.isinf(d0):
+            s2_t, d = np.full_like(s2, s0sq), np.inf
+        else:
+            s2_t = (d0 * s0sq + df_res * s2) / (d0 + df_res)
+            d = df_res + d0
+        prior_used = d0
+    elif moderate:
+        # Fixed-prior approximation: prior variance = median, prior df = `prior_df`
         s0 = np.nanmedian(s2)
         s2_t = (prior_df * s0 + df_res * s2) / (prior_df + df_res)
         d = df_res + prior_df
+        prior_used = prior_df
     else:
         s2_t = s2
         d = df_res
@@ -79,7 +123,7 @@ def factorial_interaction(
         se_int = np.sqrt(XtX_inv[3, 3] * s2_t)
         t_int = beta[3] / se_int
         
-    p_int = 2 * stats.t.sf(np.abs(t_int), d)
+    p_int = 2 * (stats.norm.sf(np.abs(t_int)) if np.isinf(d) else stats.t.sf(np.abs(t_int), d))
     
     # Build output dataframe
     # Features with s2==0 get NaN p_int
@@ -106,5 +150,6 @@ def factorial_interaction(
         "sigma": sigma,
         "cohens_d_int": cohens_d
     }, index=Y.columns)
-    
+    out_df.attrs["prior_df"] = float(prior_used)
+
     return out_df

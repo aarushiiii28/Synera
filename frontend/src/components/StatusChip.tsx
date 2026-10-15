@@ -1,46 +1,29 @@
-import React from 'react';
+import type { Status } from '../lib/api';
+import { STATUS_BLURB } from '../lib/format';
 
-type Status = 'CANDIDATE' | 'VALIDATED' | 'VERIFIED' | 'BLOCKED' | 'REJECTED';
+const TONE: Record<Status, string> = {
+  CANDIDATE: 'text-signal', VALIDATED: 'text-teal', VERIFIED: 'text-biosphere', BLOCKED: 'text-alert', REJECTED: 'text-faint',
+};
 
-export function StatusChip({ status }: { status: Status }) {
-  let color = 'text-faint';
-  let glyph = <div className="w-3 h-3 border-2 border-faint" />; // fallback
-
-  if (status === 'CANDIDATE') {
-    color = 'text-signal';
-    glyph = <div className="w-3 h-3 border-[1.5px] border-signal rounded-full" />;
-  } else if (status === 'VALIDATED') {
-    color = 'text-teal';
-    glyph = (
-      <div className="w-3 h-3 border-[1.5px] border-teal rounded-full overflow-hidden flex">
-        <div className="w-1/2 h-full bg-teal" />
-      </div>
-    );
-  } else if (status === 'VERIFIED') {
-    color = 'text-biosphere';
-    glyph = (
-      <div className="w-3 h-3 bg-biosphere rounded-full flex items-center justify-center">
-        <svg viewBox="0 0 12 12" className="w-2 h-2 text-void" fill="none">
-          <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </div>
-    );
-  } else if (status === 'BLOCKED') {
-    color = 'text-alert';
-    glyph = (
-      <div className="w-3 h-3 border-[1.5px] border-alert rounded-full relative overflow-hidden flex items-center justify-center">
-        <div className="absolute w-[150%] h-[1.5px] bg-alert transform rotate-45" />
-      </div>
-    );
-  } else if (status === 'REJECTED') {
-    color = 'text-faint';
-    glyph = <div className="w-3 h-[1.5px] bg-faint" />;
-  }
-
+function Glyph({ status }: { status: Status }) {
+  const c = 'currentColor';
   return (
-    <div className={`flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase ${color}`}>
-      {glyph}
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      {status === 'CANDIDATE' && <circle cx="7" cy="7" r="5.2" stroke={c} strokeWidth="1.4" />}
+      {status === 'VALIDATED' && (<><circle cx="7" cy="7" r="5.2" stroke={c} strokeWidth="1.4" /><path d="M7 1.8a5.2 5.2 0 0 1 0 10.4z" fill={c} /></>)}
+      {status === 'VERIFIED' && (<><circle cx="7" cy="7" r="6" fill={c} /><path d="M4 7.2l2 2 4-4.4" stroke="var(--void)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></>)}
+      {status === 'BLOCKED' && (<><circle cx="7" cy="7" r="5.2" stroke={c} strokeWidth="1.4" /><path d="M3.3 10.7l7.4-7.4" stroke={c} strokeWidth="1.4" /></>)}
+      {status === 'REJECTED' && <path d="M3 7h8" stroke={c} strokeWidth="1.6" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
+/** Always a text label AND a glyph, never colour alone. */
+export function StatusChip({ status, large = false }: { status: Status; large?: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 num tracking-[0.14em] ${large ? 'text-sm' : 'text-[10px]'} ${TONE[status]}`} title={STATUS_BLURB[status]}>
+      <Glyph status={status} />
       {status}
-    </div>
+    </span>
   );
 }

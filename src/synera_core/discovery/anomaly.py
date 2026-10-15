@@ -25,7 +25,7 @@ def detect_anomalies(X: pd.DataFrame, contamination: float = 0.05) -> dict:
             dist = mcd.mahalanobis(X_clean)
             thresh = np.percentile(dist, 100 * (1 - contamination))
             mcd_outliers = X.index[dist > thresh].tolist()
-        except:
+        except (ValueError, np.linalg.LinAlgError):   # singular covariance: the robust detector is simply skipped
             pass
             
     # return union

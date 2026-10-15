@@ -6,7 +6,22 @@ fdr_method: "bh"
 min_abs_effect: 0.5  # log2 scale: multiplicative fold-change threshold
 
 # Track A configuration
-osdr_expression_variant: "rRNArm" # or "Normalized_Counts"
+# Expression table variant, chosen on technical grounds (ribosomal-RNA-depleted counts) before any
+# discovery result was seen, and applied identically to both studies. Alternative: "Normalized_Counts".
+osdr_expression_variant: "rRNArm"
+# Independent low-expression filter: keep genes with mean log2 >= 1 and >= 3 samples with log2 >= 1.
+# It never uses group labels or any interaction statistic.
+expression_filter:
+  min_mean_log2: 1.0
+  min_log2: 1.0
+  min_samples: 3
+
+# Track B / panel discovery. effect_gate is a fraction of the outcome SD (pre-specified, not tuned).
+discovery:
+  effect_gate: 0.05
+  n_boot: 299
+  n_ci: 200
+  topk_second_opinion: 6
 
 bootstrap_reps: 2000
 cv_folds: 5

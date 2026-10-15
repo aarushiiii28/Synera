@@ -1,159 +1,170 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { fetchFindings } from '../../lib/api';
+import { useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import type { Finding, Status } from '../../lib/api';
+import { useFindings, useStressors } from '../../lib/hooks';
+import { fix, sci, TYPE_COLOR } from '../../lib/format';
+import { PageHeader } from '../../components/PageHeader';
+import { Panel } from '../../components/Panel';
 import { StatusChip } from '../../components/StatusChip';
+import { EvidenceTag, ProvenanceTag } from '../../components/Provenance';
+import { Term } from '../../components/Term';
+import { EmptyState, ErrorState, Skeleton } from '../../components/States';
+import { TypeGlyph } from '../../components/charts/DiscoveryCurves';
+import { FindingsConfidenceArc, FindingsMiniForest } from '../../components/charts/FindingsParts';
+import { activeFilterCount, filtersToParams, forestSpan, nextSort, PAGE_SIZE, pageCount, parseFilters, toApiQuery, type FindingFilters } from '../../components/charts/discoveryLogic';
 
-function MiniForest({ effect, ci_low, ci_high }: { effect?: number, ci_low?: number, ci_high?: number }) {
-  if (effect === undefined || ci_low === undefined || ci_high === undefined) return null;
-  // simple SVG forest plot
-  const scale = (v: number) => 20 + v * 15; // domain roughly -1 to +1 -> 5 to 35
-  return (
-    <div className="flex items-center gap-2">
-      <svg width={40} height={12} className="overflow-visible">
-        <line x1={20} y1={0} x2={20} y2={12} stroke="var(--line-strong)" strokeDasharray="1,1" />
-        <line x1={scale(ci_low)} y1={6} x2={scale(ci_high)} y2={6} stroke="var(--text)" strokeWidth={1} />
-        <circle cx={scale(effect)} cy={6} r={2.5} fill="var(--signal)" />
-      </svg>
-      <span className="font-mono text-[10px] w-8">{effect.toFixed(2)}</span>
-    </div>
+const STATUSES: Status[] = ['CANDIDATE', 'VALIDATED', 'VERIFIED', 'BLOCKED', 'REJECTED'];
+const SEL = 'bg-void border border-line px-2 py-1.5 text-[13px] text-text min-w-0 focus-visible:outline-signal';
+
+export default function Findings() {
+  const [sp, setSp] = useSearchParams();
+  const nav = useNavigate();
+  const f = useMemo(() => parseFilters(sp), [sp]);
+  const set = (patch: Partial<FindingFilters>) => setSp(filtersToParams({ ...f, page: 1, ...patch }), { replace: true });
+  const q = useFindings(toApiQuery(f));
+  const st = useStressors();
+  const nm = (k: string) => st.data?.[k]?.label ?? k;
+  const items = q.data?.items ?? [];
+  const maxHi = Math.max(0, ...items.map((i) => forestSpan(i)?.hi ?? 0));
+  const counts = q.data?.counts;
+  const registryTotal = counts ? Object.values(counts).reduce((a, b) => a + b, 0) : null;
+  const filters = activeFilterCount(f);
+  const pages = q.data ? pageCount(q.data.total) : 1;
+  const arrow = (col: 'effect' | 'q' | 'status') => {
+    const on = col === 'effect' ? f.sort.endsWith('effect_size') : col === 'q' ? f.sort.endsWith('q_value') : f.sort === 'status';
+    return on ? (f.sort.startsWith('-') ? ' ▾' : ' ▴') : '';
+  };
+  const th = (label: string, col: 'effect' | 'q' | 'status') => (
+    <th scope="col" className="text-left font-normal py-2 pr-4" aria-sort={(col === 'effect' ? f.sort.endsWith('effect_size') : col === 'q' ? f.sort.endsWith('q_value') : f.sort === 'status') ? 'other' : 'none'}>
+      <button type="button" onClick={() => set({ sort: nextSort(f.sort, col) })} className="label bg-transparent border-0 p-0 cursor-pointer hover:!text-text">{label}{arrow(col)}</button>
+    </th>
   );
-}
+  const open = (r: Finding) => nav(`/findings/${r.id}`);
 
-function ConfidenceGauge({ value = 0.8 }: { value?: number }) {
-  return (
-    <svg width={24} height={24} viewBox="0 0 24 24" className="transform -rotate-90">
-      <circle cx={12} cy={12} r={10} fill="none" stroke="var(--line)" strokeWidth={2} />
-      <circle cx={12} cy={12} r={10} fill="none" stroke="var(--biosphere)" strokeWidth={2} strokeDasharray={`${value * 62.8} 62.8`} />
-    </svg>
+  const empty = q.data && q.data.total === 0 && (
+    registryTotal === 0 ? (
+      <EmptyState title="The registry is empty">
+        No run has produced a finding yet. Run the engine in the Discovery Lab and every interaction that survives selection will appear here with its evidence.
+        <span className="block mt-2">Zero <b>VERIFIED</b> is also the expected state for simulated data and for single-dataset results: <Link to="/guide" className="text-signal">see how a finding earns that status</Link>.</span>
+      </EmptyState>
+    ) : (
+      <EmptyState title="No findings match these filters" tone="solar" action={<button type="button" onClick={() => setSp({}, { replace: true })} className="num text-xs border border-signal text-signal px-4 py-2 hover:bg-signal/10">CLEAR ALL FILTERS</button>}>
+        {registryTotal} finding{registryTotal === 1 ? '' : 's'} exist in the registry, none with {[f.status && `status ${f.status}`, f.type && `type ${f.type}`, f.track && `track ${f.track}`, f.provenance && `${f.provenance} data`, f.q && `"${f.q}" in the name`].filter(Boolean).join(', ')}.
+        {f.status === 'VERIFIED' && <span className="block mt-2">No finding is VERIFIED because that needs REAL data and independent replication. <Link to="/guide" className="text-signal">Why?</Link></span>}
+      </EmptyState>
+    )
   );
-}
-
-export function Findings() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  
-  const statusFilter = searchParams.get('status') || '';
-  const typeFilter = searchParams.get('type') || '';
-  const search = searchParams.get('q') || '';
-  
-  const { data, isLoading } = useQuery({
-    queryKey: ['findings', statusFilter, typeFilter, search],
-    queryFn: () => fetchFindings({ 
-      ...(statusFilter ? { status: statusFilter } : {}),
-      ...(typeFilter ? { type: typeFilter } : {}),
-      ...(search ? { q: search } : {})
-    })
-  });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-8 lg:p-12 pb-16">
-      <div className="flex flex-col gap-2 mb-8">
-        <h1 className="font-display text-4xl uppercase tracking-tight text-text">Finding Registry</h1>
-        <p className="text-muted font-sans max-w-2xl">
-          Complete log of all interaction pairs evaluated by the system.
-        </p>
-      </div>
+    <div className="pb-16">
+      <PageHeader index="02" kicker="VALIDATE" title="Findings registry"
+        standfirst={<>Every interaction the engine has kept, with how far it got: <Term k="interaction">candidates</Term> are found by the statistics, <b>validated</b> findings passed every statistical test, and <Term k="verified">verified</Term> ones also have independent replication and intact provenance.</>} />
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Instrument Strip */}
-        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-line">
-          <input 
-            type="text" 
-            placeholder="Search variables..." 
-            value={search}
-            onChange={(e) => {
-              const p = new URLSearchParams(searchParams);
-              if (e.target.value) p.set('q', e.target.value); else p.delete('q');
-              setSearchParams(p);
-            }}
-            className="bg-void border border-line p-2 text-xs font-mono text-text outline-none focus:border-signal w-64"
-          />
-          <select 
-            value={statusFilter}
-            onChange={(e) => {
-              const p = new URLSearchParams(searchParams);
-              if (e.target.value) p.set('status', e.target.value); else p.delete('status');
-              setSearchParams(p);
-            }}
-            className="bg-void border border-line p-2 text-xs font-mono text-text outline-none focus:border-signal"
-          >
-            <option value="">ALL STATUSES</option>
-            <option value="CANDIDATE">CANDIDATE</option>
-            <option value="VALIDATED">VALIDATED</option>
-            <option value="VERIFIED">VERIFIED</option>
-            <option value="BLOCKED">BLOCKED</option>
-          </select>
-          <select 
-            value={typeFilter}
-            onChange={(e) => {
-              const p = new URLSearchParams(searchParams);
-              if (e.target.value) p.set('type', e.target.value); else p.delete('type');
-              setSearchParams(p);
-            }}
-            className="bg-void border border-line p-2 text-xs font-mono text-text outline-none focus:border-signal"
-          >
-            <option value="">ALL TYPES</option>
-            <option value="SYNERGISTIC">SYNERGISTIC</option>
-            <option value="ANTAGONISTIC">ANTAGONISTIC</option>
-            <option value="NONLINEAR">NONLINEAR</option>
-          </select>
-          <div className="ml-auto text-xs font-mono text-muted">
-            TOTAL: {data?.total || 0}
-          </div>
-        </div>
-
-        {/* Table Header */}
-        <div className="flex px-4 py-2 text-[10px] font-mono tracking-widest text-faint uppercase border-b border-line">
-          <div className="w-32">Status</div>
-          <div className="w-24">Type</div>
-          <div className="flex-1">Pair</div>
-          <div className="w-48">Effect (CI)</div>
-          <div className="w-24">Q-Value</div>
-          <div className="w-24 text-center">Confidence</div>
-          <div className="w-32 text-right">Provenance</div>
-        </div>
-
-        {/* Table Body */}
-        <div className="flex-1 overflow-auto">
-          {isLoading && <div className="p-4 font-mono text-xs text-muted">LOADING...</div>}
-          {!isLoading && data?.items.length === 0 && (
-            <div className="p-8 text-center border border-line border-dashed m-4 text-faint font-mono text-xs">
-              NO FINDINGS MATCH YOUR CRITERIA.
-            </div>
-          )}
-          {!isLoading && data?.items.map((f) => (
-            <div 
-              key={f.id} 
-              className="flex items-center px-4 py-3 border-b border-line/30 hover:bg-hull/30 cursor-pointer transition-colors"
-              onClick={() => navigate(`/findings/${f.id}`)}
-            >
-              <div className="w-32">
-                <StatusChip status={f.status} />
-              </div>
-              <div className="w-24 font-mono text-[10px] tracking-widest text-signal">
-                {f.interaction_type.substring(0,3)}
-              </div>
-              <div className="flex-1 font-mono text-sm text-text">
-                {f.v1} <span className="text-muted mx-2">×</span> {f.v2}
-              </div>
-              <div className="w-48">
-                <MiniForest effect={(f as any).b_AB || f.effect_size} ci_low={(f as any).ci_low} ci_high={(f as any).ci_high} />
-              </div>
-              <div className="w-24 font-mono text-xs text-muted">
-                {f.q_value.toExponential(2)}
-              </div>
-              <div className="w-24 flex justify-center">
-                <ConfidenceGauge value={0.8} />
-              </div>
-              <div className="w-32 text-right">
-                <span className={`text-[10px] font-mono tracking-widest px-2 py-1 rounded-sm ${f.provenance === 'SIMULATED' ? 'bg-solar/10 text-solar' : 'bg-biosphere/10 text-biosphere'}`}>
-                  {f.provenance}
-                </span>
-              </div>
-            </div>
+      {/* counts bar */}
+      <section aria-label="Registry counts" className="px-6 md:px-10 mb-8">
+        <ul className="list-none m-0 p-0 grid grid-cols-2 md:grid-cols-5 border-y border-line">
+          {STATUSES.map((s) => (
+            <li key={s} className="border-r border-line last:border-r-0 first:border-l-0">
+              <button type="button" aria-pressed={f.status === s} onClick={() => set({ status: f.status === s ? '' : s })}
+                className={`w-full text-left px-4 py-3 bg-transparent border-0 cursor-pointer ${f.status === s ? 'bg-signal/10' : 'hover:bg-hull/40'}`}>
+                <StatusChip status={s} />
+                <div className="num text-4xl leading-none mt-2" style={{ color: counts && counts[s] === 0 ? 'var(--faint)' : 'var(--text)' }}>{counts ? counts[s] : '—'}</div>
+              </button>
+            </li>
           ))}
+        </ul>
+        {counts && counts.VERIFIED === 0 && <p className="text-[13px] text-muted mt-2 mb-0">0 verified is expected here: VERIFIED needs REAL data and independent replication. <Link to="/guide" className="text-signal">How a finding earns it</Link>.</p>}
+      </section>
+
+      {/* instrument strip */}
+      <section aria-label="Filters" className="px-6 md:px-10 mb-6">
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-b border-line pb-4">
+          {([
+            ['status', 'Status', STATUSES], ['type', 'Type', ['SYNERGISTIC', 'ANTAGONISTIC', 'NONLINEAR']], ['track', 'Track', ['A', 'B']], ['provenance', 'Provenance', ['REAL', 'SIMULATED']],
+          ] as const).map(([k, label, opts]) => (
+            <label key={k} className="grid gap-1"><span className="label">{label}</span>
+              <select className={SEL} value={f[k]} onChange={(e) => set({ [k]: e.target.value })}>
+                <option value="">All</option>{opts.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </label>
+          ))}
+          <label className="grid gap-1 flex-1 min-w-[12rem]"><span className="label">Search stressor or gene</span>
+            <input type="search" className={SEL} value={f.q} maxLength={60} placeholder="e.g. heat" onChange={(e) => set({ q: e.target.value })} />
+          </label>
+          <button type="button" disabled={filters === 0} onClick={() => setSp({}, { replace: true })} className="num text-[11px] tracking-[0.12em] border border-line px-3 py-2 text-muted enabled:hover:text-text disabled:opacity-40">CLEAR{filters ? ` (${filters})` : ''}</button>
         </div>
+        <div className="num text-[12px] text-muted mt-2" role="status">{q.data ? `${q.data.total} finding${q.data.total === 1 ? '' : 's'}${filters ? ' match' : ''}` : ''}</div>
+      </section>
+
+      <div className="px-6 md:px-10">
+        {q.isLoading ? <Skeleton h={260} /> : q.isError ? <ErrorState error={q.error} retry={() => q.refetch()} /> : empty ? empty : (
+          <Panel variant="bare" padded={false}>
+            {/* desktop table */}
+            <table className="hidden md:table w-full border-collapse text-[13.5px]">
+              <caption className="sr-only">Findings registry</caption>
+              <thead><tr className="border-b border-line-strong">
+                {th('Status', 'status')}
+                <th scope="col" className="label text-left font-normal pr-4">Type</th>
+                <th scope="col" className="label text-left font-normal pr-4">Stressor pair</th>
+                {th('Effect (SD) and 95% CI', 'effect')}
+                {th('q-value', 'q')}
+                <th scope="col" className="label text-left font-normal pr-4">Confidence</th>
+                <th scope="col" className="label text-left font-normal">Data and evidence</th>
+              </tr></thead>
+              <tbody>
+                {items.map((r) => {
+                  const span = forestSpan(r);
+                  return (
+                    <tr key={r.id} onClick={() => open(r)} className="border-b border-line hover:bg-hull/50 cursor-pointer">
+                      <td className="py-3 pr-4"><StatusChip status={r.status} /></td>
+                      <td className="pr-4"><span className="inline-flex items-center gap-2 num text-[11px] tracking-[0.1em]" style={{ color: TYPE_COLOR[r.type] }}><TypeGlyph type={r.type} size={24} />{r.type}</span></td>
+                      <td className="pr-4">
+                        <Link to={`/findings/${r.id}`} onClick={(e) => e.stopPropagation()} className="text-text hover:text-signal font-medium">{nm(r.stressors[0])} <span className="text-faint">x</span> {nm(r.stressors[1])}</Link>
+                        {r.feature && <div className="num text-[11px] text-muted">{r.feature}</div>}
+                      </td>
+                      <td className="pr-4">
+                        <div className="flex items-center gap-3"><span className="num w-10">{fix(r.effect.effect_size, 2)}</span>
+                          {span && <FindingsMiniForest point={span.point} lo={span.lo} hi={span.hi} max={maxHi} label={`Effect ${fix(span.point, 2)}, interval ${fix(span.lo, 2)} to ${fix(span.hi, 2)}`} />}</div>
+                      </td>
+                      <td className="num pr-4">{sci(r.stats.q)}</td>
+                      <td className="pr-4">{r.confidence && <FindingsConfidenceArc score={r.confidence.score} components={r.confidence.components} />}</td>
+                      <td><div className="grid gap-1 justify-items-start"><ProvenanceTag provenance={r.provenance} /><EvidenceTag level={r.evidence_level} /></div></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* mobile cards */}
+            <ul className="md:hidden list-none m-0 p-0 grid gap-3">
+              {items.map((r) => {
+                const span = forestSpan(r);
+                return (
+                  <li key={r.id} className="border border-line bg-hull/30 p-4">
+                    <div className="flex items-center justify-between mb-2"><StatusChip status={r.status} /><ProvenanceTag provenance={r.provenance} /></div>
+                    <Link to={`/findings/${r.id}`} className="display text-[17px] text-text">{nm(r.stressors[0])} <span className="text-faint">x</span> {nm(r.stressors[1])}</Link>
+                    <div className="mt-1 inline-flex items-center gap-2 num text-[11px] tracking-[0.1em]" style={{ color: TYPE_COLOR[r.type] }}><TypeGlyph type={r.type} size={22} />{r.type}</div>
+                    <div className="flex items-center gap-4 mt-3">
+                      <div><div className="label">effect SD</div><div className="num">{fix(r.effect.effect_size, 2)}</div></div>
+                      <div><div className="label">q</div><div className="num">{sci(r.stats.q)}</div></div>
+                      {r.confidence && <FindingsConfidenceArc score={r.confidence.score} components={r.confidence.components} />}
+                    </div>
+                    {span && <div className="mt-2"><FindingsMiniForest point={span.point} lo={span.lo} hi={span.hi} max={maxHi} width={160} label={`Effect ${fix(span.point, 2)}`} /></div>}
+                    <div className="mt-2"><EvidenceTag level={r.evidence_level} /></div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {pages > 1 && (
+              <nav aria-label="Pagination" className="flex items-center gap-4 mt-5 num text-[12px]">
+                <button type="button" disabled={f.page <= 1} onClick={() => set({ page: f.page - 1 })} className="border border-line px-3 py-1.5 disabled:opacity-40">PREV</button>
+                <span>page {f.page} of {pages} <span className="text-faint">({PAGE_SIZE} per page)</span></span>
+                <button type="button" disabled={f.page >= pages} onClick={() => set({ page: f.page + 1 })} className="border border-line px-3 py-1.5 disabled:opacity-40">NEXT</button>
+              </nav>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );

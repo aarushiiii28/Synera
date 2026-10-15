@@ -1,64 +1,40 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from '../lib/hooks';
 
-interface ReadoutProps {
-  value: number | string;
-  caption: string;
-  unit?: string;
-  delta?: string;
-  format?: 'int' | 'float' | 'percent';
-}
-
-export function Readout({ value, caption, unit, delta, format = 'int' }: ReadoutProps) {
-  const [displayValue, setDisplayValue] = useState<number | string>(value);
-  const mounted = useRef(false);
-
+/** Big tabular number with a thin unit label and a 1px baseline. Counts up once on mount. */
+export function Readout({ label, value, unit, hint, tone = 'text', decimals = 0, display }: {
+  label: string; value: number | null | undefined; unit?: string; hint?: string; tone?: 'text' | 'signal' | 'biosphere' | 'solar' | 'alert' | 'teal'; decimals?: number; display?: string;
+}) {
+  const reduced = useReducedMotion();
+  const [shown, setShown] = useState(reduced ? (value ?? 0) : 0);
+  const first = useRef(true);
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof value !== 'number' || reducedMotion || mounted.current) {
-      setDisplayValue(value);
-      mounted.current = true;
-      return;
-    }
-    
-    // Animate only on first mount
-    mounted.current = true;
-    const duration = 800;
-    const startTime = performance.now();
-    
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-      
-      const current = value * easeOutQuart;
-      setDisplayValue(current);
-      
-      if (progress < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        setDisplayValue(value);
-      }
+    if (value === null || value === undefined) return;
+    if (!first.current || reduced) { setShown(value); first.current = false; return; }
+    first.current = false;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.max(0, Math.min(1, (t - t0) / 900));
+      setShown(value * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
     };
-    
-    requestAnimationFrame(tick);
-  }, [value]);
-
-  const formatted = typeof displayValue === 'number' 
-    ? (format === 'float' ? displayValue.toFixed(3) : format === 'percent' ? `${Math.round(displayValue * 100)}` : Math.round(displayValue).toString())
-    : displayValue;
-
+    raf = requestAnimationFrame(tick);
+    // rAF is throttled in background tabs; always land on the real value.
+    const done = window.setTimeout(() => setShown(value), 1000);
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(done); };
+  }, [value, reduced]);
+  const color = { text: 'var(--text)', signal: 'var(--signal)', biosphere: 'var(--biosphere)', solar: 'var(--solar)', alert: 'var(--alert)', teal: 'var(--teal)' }[tone];
   return (
-    <div className="flex flex-col relative w-fit">
-      <div className="flex items-baseline gap-2 pb-1 border-b border-line">
-        <span className="font-mono text-4xl text-text leading-none">{formatted}</span>
-        {(unit || format === 'percent') && (
-          <span className="font-sans text-sm text-muted">{unit || '%'}</span>
-        )}
-        {delta && <span className="font-mono text-[10px] text-signal ml-2">{delta}</span>}
+    <div className="min-w-[8rem]">
+      <div className="label mb-1">{label}</div>
+      <div className="flex items-baseline gap-2 border-b border-line pb-1">
+        <span className="num text-4xl md:text-5xl leading-none" style={{ color }}>
+          {display ?? (value === null || value === undefined ? '—' : shown.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }))}
+        </span>
+        {unit && <span className="num text-xs text-faint">{unit}</span>}
       </div>
-      <span className="font-sans text-[10px] uppercase tracking-widest text-muted mt-2">
-        {caption}
-      </span>
+      {hint && <div className="text-xs text-muted mt-1 max-w-[16rem] leading-snug">{hint}</div>}
     </div>
   );
 }

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "vitest run",
+    "e2e": "node e2e/smoke.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

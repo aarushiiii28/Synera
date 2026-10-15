@@ -1,57 +1,49 @@
-# SYNERA Design System
+# SYNERA design system: "mission control meets planetary observatory"
 
-## Theme & Aesthetic Concept
-**"Mission control meets planetary observatory"**
-The SYNERA frontend must not look like a generic B2B SaaS dashboard. It draws inspiration from deep-space navigation interfaces, planetary observatories, and high-fidelity scientific instruments.
+The interface has three jobs: look like it belongs in space, be understandable in thirty seconds by someone who has never heard of an FDR, and never overstate what the science shows.
 
-- **Vibe**: Technical, rigorous, luminous, asymmetrical, and editorial.
-- **Banned Patterns**: Glassmorphism, 24px border radii, large soft drop shadows, default shadcn aesthetics, emoji icons, stock 3-column feature grids, lorem ipsum placeholders, or fake/seeded numbers.
-- **Required Details**: 1px hairline borders, max 2px corner radius, corner "crop-mark" brackets on panels, latitude/longitude graticule backgrounds, strict tabular monospaced numerals for data, purposeful slow motion (orbits, data packet pulses).
+## Look
 
-## Tokens (`src/design/tokens.css`)
+* **Light source and depth.** The planet is the hero. A real NASA Earth (day side, city lights, clouds) is lit by a fixed sun with a visible terminator, a Fresnel atmosphere, a sunrise glare behind the top limb and eight pulsing city markers (`Earth.tsx`, textures in `public/textures`). Behind every page: a seeded star field, a latitude/longitude graticule limb cropped off the corner, a warm glow at the horizon and a vignette. Never a flat colour and never a square grid.
+* **Instrument details.** 1px hairlines, a maximum 2px corner radius, crop-mark corner brackets on grouped data, tabular monospaced numerals for every number, slow ambient motion only (orbit, pulse, packets on the pipeline), count-up on first mount.
+* **Typography.** Sora (display; wordmark light 300 with 0.24em tracking, headings 600 uppercase), IBM Plex Sans (reading), IBM Plex Mono (data, hashes, labels), Instrument Serif italic for a few editorial words per page only.
 
-### Colors
-- `--void`: `#050D18` (Deepest background)
-- `--abyss`: `#081B2E` (App background)
-- `--hull`: `#0D2540` (Panels)
-- `--hull-2`: `#123152` (Hover states, secondary panels)
-- `--line`: `rgba(110, 190, 255, 0.16)` (Borders, graticule)
-- `--line-strong`: `rgba(110, 190, 255, 0.34)` (Active borders)
-- `--text`: `#E8F1FA` (Primary text)
-- `--muted`: `#7F98B2` (Secondary text)
-- `--faint`: `#4B6480` (Disabled/faint elements)
-- `--signal`: `#16B5FF` (Cyan: primary/interactive, antagonistic, CANDIDATE outline)
-- `--biosphere`: `#6FD65B` (Green: synergistic, VERIFIED filled, REAL data)
-- `--solar`: `#FFB547` (Amber: nonlinear, caution, SIMULATED data)
-- `--alert`: `#FF4D5E` (Red: blocked, tampered)
-- `--teal`: `#19E3B1` (VALIDATED state)
+## Colour semantics (never deviate)
 
-### Typography
-- **Display**: `Sora` (Wordmark light 300 tracked 0.18em; Headings 600 uppercase tight)
-- **Body**: `IBM Plex Sans` (Readable, scientific, contrast >= 4.5:1)
-- **Data/Hash**: `IBM Plex Mono` (Always tabular-nums via `font-variant-numeric: tabular-nums`)
-- **Scale**: 12, 14, 16, 20, 28, 44, 72.
+| Token | Hex | Meaning |
+|---|---|---|
+| `--void` / `--abyss` / `--hull` | `#02060d` / `#061424` / `#0b2037` | space, app background, panels |
+| `--signal` | `#16b5ff` | interactive, antagonistic, candidate |
+| `--biosphere` | `#6fd65b` | synergistic, verified, REAL data |
+| `--solar` | `#ffb547` | non-linear, caution, SIMULATED data |
+| `--alert` | `#ff4d5e` | blocked, tamper, signal lost |
+| `--teal` | `#19e3b1` | validated |
+| `--sun` | `#ffd9a0` | sunrise accent and the one serif phrase per page |
 
-## Core Components
-1. **Panel**: A container with a hairline `--line` border, 4 corner SVG brackets, optional mini index header (e.g. `02 / DISCOVERY`), and optional provenance tag.
-2. **StatusChip**: Text + semantic glyph (e.g., outline circle for CANDIDATE, half-filled for VALIDATED, sealed check for VERIFIED, slashed hatch for BLOCKED).
-3. **HashRing**: A deterministic circular SVG representation of any SHA256 string. Radiating lines interpolating from signal to biosphere based on byte value.
-4. **Readout**: Large tabular mono numeral, tiny caption, optional delta. Number increments on mount.
-5. **OrbitProgress**: Circular loader with a tiny orbiting satellite dot.
-6. **TelemetryBar**: Top structural bar showing ledger height, chain state, API status, and UTC time.
-7. **Caveat**: Banner explicitly stating data limitations (e.g., "SIMULATED provenance cap").
-8. **Navigation Rail**: 72px left rail containing 7 custom 1.5px-stroke SVGs for the routes.
+Status is always **text + glyph**, never colour alone: CANDIDATE ◯, VALIDATED ◐, VERIFIED ● with check, BLOCKED ⃠ (hatched surface), REJECTED —.
+`REAL` = green dot, `SIMULATED` = amber dot with the word, on every relevant panel.
 
-## Layout & Routing
-- Left Rail: Observatory, Discovery, Findings, Space Biology, Trust Center, Benchmark, Risk Assessment.
-- Top: TelemetryBar.
-- Canvas: Graticule background pattern, asymmetrical layout.
-- The `/_design` route renders all components in all states for visual review.
+## Understandability rules
 
-## New Layout Rules (Part 7B)
-- **BANNED**: Identical bordered boxes repeated across a page, mono-uppercase for every label, flat single-colour backgrounds.
-- **Graticule**: Use an orthographic projection graticule + seeded starfield for background depth.
-- **Typography**: `Instrument Serif italic` is the sole accent face for editorial emphasis. Never use for data or UI labels.
-- **Panels**: Use open space, direct annotation, and hairline rules. `<Panel>` variants include `bracketed`, `ruled`, `inset`, and `bare`.
-- **Readout**: Features 1px baseline rules, larger tabular numerals, and thin unit labels. Animate (count-up) on mount only.
-- **Transitions**: Horizontal scan line sweeps with staggered fade-ups. Respect `prefers-reduced-motion` for all ambient animations (globe, graticule rotate, pulses).
+1. **Every page opens with a plain-language standfirst** and, where a chart follows, an *In plain words* callout (`Explainer`).
+2. **Jargon is explained where it appears.** `<Term k="fdr">` shows a one-sentence definition on hover or keyboard focus. Definitions live in `lib/glossary.ts`.
+3. **Navigation is always labelled** (rail with title and a one-line subtitle). Pipeline words DISCOVER / VALIDATE / VERIFY / ACT mark the matching pages.
+4. **A guided 3-minute tour** (`lib/tour.ts`, `Tour.tsx`) walks the deck order and navigates for the visitor.
+5. **Empty is a designed state.** Zero is shown as zero (“0 verified”). Panels never go blank: skeleton scanning bars while loading, a designed explanation when empty, a SIGNAL LOST state when the API is down.
+6. **Caveats are not optional UI.** `Caveat` banners render wherever they apply: SIMULATED, CROSS-TISSUE · SAME COHORT, INTERNAL REPLICATION, HYPOTHESIS ONLY, LOW POWER, and the definition of VERIFIED.
+
+## Banned
+
+Purple or indigo gradients, glassmorphism, soft rounded cards with large shadows, emoji icons, a centred SaaS hero, a stock three-column feature grid, lorem ipsum, any number that is not computed from data, identical bordered boxes repeated down a page (vary `Panel` treatments: `bracketed`, `ruled`, `inset`, `bare`, `alert`).
+
+## Components (`src/components`)
+
+`Earth`, `StressorBeams`, `Backdrop` (stars + graticule), `Rail`/`BottomBar`, `TopBar` (states CHECKING / LIVE / OFFLINE), `Tour`, `Panel`, `PageHeader`, `Readout`, `StatusChip`, `ProvenanceTag`/`EvidenceTag`, `HashRing`/`HashGlyph`, `Term`, `Explainer`/`Caveat`, `Skeleton`/`EmptyState`/`ErrorState`/`Async`. The dev-only route `/_design` renders each of them (values labelled SPECIMEN, NOT DATA).
+
+## Accessibility and motion
+
+Body contrast ≥ 4.5:1, visible focus ring in `--signal`, `jsx-a11y` clean, keyboard-reachable tooltips and tour, `prefers-reduced-motion` removes the globe rotation (static NASA disc), beams, pulses and sweeps. Mobile: the rail becomes a bottom bar and charts reflow; nothing scrolls horizontally.
+
+## Data honesty in the UI
+
+Numbers come from the API only (`lib/api.ts` mirrors `docs/API_CONTRACT.md`). No `?? 6` style fallbacks: while loading or offline the page shows a designed state. Large probabilities are formatted with `sci()`; p and q are scientific notation; units are always shown.

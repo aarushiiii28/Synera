@@ -1,6 +1,5 @@
 import json
 import pandas as pd
-from pathlib import Path
 
 from synera_core.data.osdr import search_studies, get_meta, list_files
 from synera_core.config import find_repo_root

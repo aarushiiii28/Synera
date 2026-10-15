@@ -3,10 +3,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-import json
 
 from synera_core.data.http_client import HTTPClient
-from synera_core.data.osdr import get_meta, list_files
 from synera_core.data.nasa_power import fetch_power_point
 from synera_core.data.openmeteo import fetch_openmeteo_archive
 
