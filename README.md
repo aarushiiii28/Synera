@@ -45,6 +45,18 @@ make demo         # verify evidence, start API (8000) and web (5173)
 Or `docker compose up --build` → web on `http://localhost:8080` (the ledger and its signing key live in a named volume, never in an image).
 `make reproduce` re-runs every recorded analysis and compares the digest of its outputs with the ledger; mismatches are reported and the exit code is non-zero.
 
+## Deploying
+
+`docker compose up --build` starts two services: `api` (FastAPI, non-root) and `web` (nginx serving the built UI and proxying `/api/` to the API, with response buffering off so the engine's progress stream works).
+
+* **First start** runs `scripts/bootstrap.py --quick`: it registers the datasets, restores the shipped benchmark report from `data/results/`, rebuilds the Track A gene results, seeds the database and generates a fresh ledger signing key. This takes a couple of minutes; the API reports healthy afterwards and `web` waits for it.
+* **State** (ledger, signing key, database, results) lives in the `artifacts` volume. Keep the volume: delete it and every ledger block, the key and all findings are regenerated, so earlier receipts will no longer verify. The key is never in git or an image.
+* **Settings** (environment): `CORS_ORIGINS` must list the public origin of the site; `SYNERA_OFFLINE=1` serves cached forecasts and never calls out. With internet access the Risk Brief fetches a live Open-Meteo forecast, and falls back to a cached one when that fails.
+* **HTTPS** is not terminated here. Put the `web` service behind your host's TLS (a load balancer, Caddy or a platform proxy) and expose only port 8080/443, not 8000.
+* **After changing anything in `src/synera_core`**, re-run `make seed` (or recreate the volume): the code fingerprint changes, and the reproducibility gate correctly reports older runs as stale.
+* **Refreshing the benchmark**: `make benchmark`, then copy `artifacts/results/benchmark.json` to `data/results/benchmark.json` and commit it.
+* **Everything the site shows about risk is a simulated demonstration** and says so on the page. No finding is VERIFIED.
+
 ## The finding lifecycle
 
 `CANDIDATE` survived FDR and conditional selection → `VALIDATED` effect ≥ the pre-specified gate, bootstrap CI clears it, ≥ 2 of 3 methods agree → `VERIFIED` additionally replicated independently, built from REAL data, dataset hash and ledger chain intact, and the run replays to the same result. `BLOCKED` = any integrity failure ("result blocked from verified status"). `REJECTED` = detectable but below the minimal effect.
