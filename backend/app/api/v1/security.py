@@ -12,6 +12,7 @@ from synera_core.pipeline.registry import get_registry
 from synera_core.provenance.ledger import Ledger
 from synera_core.security.tamper_sim import DESCRIPTIONS, MODES, simulate_attack
 
+from backend.app.core import config
 from backend.app.core.config import SIMULATE_RATE_LIMIT_PER_MIN
 from backend.app.core.deps import get_ledger, read_result_json
 from backend.app.db.database import get_session
@@ -46,6 +47,8 @@ def simulate_tamper(req: TamperRequest, ledger: Ledger = Depends(get_ledger)):
         raise HTTPException(404, f"dataset '{req.dataset_id}' not found")
     if req.mode not in MODES:
         raise HTTPException(400, f"unsupported mode '{req.mode}'; choose one of {MODES}")
+    if config.LOW_MEMORY and req.mode not in config.LOW_MEMORY_ATTACKS:
+        raise HTTPException(400, "This host has too little memory for the statistical attack scans (they load a neural network). The hash (bit_flip) and ledger (ledger_tamper) attacks run here; run SYNERA locally or on a larger host for the others")
     try:
         return simulate_attack(req.dataset_id, req.mode, req.magnitude, req.seed, ledger)
     except FileNotFoundError as exc:

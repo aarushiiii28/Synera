@@ -89,3 +89,29 @@ def test_run_end_to_end_with_sse_findings_and_gates(client, tiny_registry, monke
         assert any("SIMULATED provenance cap" in x for x in v["reasons"])
         assert client.get(f"{B}/findings/{f['id']}/surface").json()["z_gap"]
     pytest.importorskip("sqlmodel")
+
+
+def test_low_memory_host_refuses_neural_attack_scans_but_runs_hash_attacks(client, monkeypatch):
+    """On a ~512 MB host (SYNERA_LOW_MEMORY=1) the scans that load PyTorch say why they cannot run, instead of killing the process."""
+    from backend.app.core import config
+    monkeypatch.setattr(config, "LOW_MEMORY", True)
+    r = client.post(f"{B}/security/simulate-tamper", json={"dataset_id": "osd-211", "mode": "subtle_edit"})
+    assert r.status_code == 400 and "too little memory" in r.json()["error"]["message"]
+    assert client.post(f"{B}/security/simulate-tamper", json={"dataset_id": "osd-211", "mode": "bit_flip"}).status_code == 200
+
+
+def test_low_memory_host_never_starts_a_heavy_run(client, monkeypatch):
+    """Forced or full-size re-runs are turned into the recorded quick run on a low-memory host."""
+    from backend.app.api.v1 import runs
+    from backend.app.core import config
+    seen = {}
+
+    def fake_start(session, ledger, dataset_id, overrides, force):
+        seen.update(overrides=overrides, force=force)
+        return "run_x", True
+
+    monkeypatch.setattr(config, "LOW_MEMORY", True)
+    monkeypatch.setattr(runs.manager, "start", fake_start)
+    r = client.post(f"{B}/runs", json={"dataset_id": "osd-211", "force": True, "quick": False, "n_boot": 400})
+    assert r.status_code == 202
+    assert seen["force"] is False and seen["overrides"]["quick"] is True and "n_boot" not in seen["overrides"]

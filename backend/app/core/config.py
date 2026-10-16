@@ -18,6 +18,11 @@ MIN_N_BOOT = 49
 MAX_CONCURRENT_RUNS = 2
 SIMULATE_RATE_LIMIT_PER_MIN = 20
 
+# Set SYNERA_LOW_MEMORY=1 on a host with about 512 MB (e.g. a free tier). Computing the engine or a statistical attack scan loads PyTorch and
+# needs ~700 MB, which would get the process killed; with this flag those actions replay recorded results or explain why they cannot run.
+LOW_MEMORY = os.environ.get("SYNERA_LOW_MEMORY", "0") == "1"
+LOW_MEMORY_ATTACKS = ("bit_flip", "ledger_tamper")      # these need no neural network, so they still run
+
 
 def cors_origins() -> list[str]:
     raw = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")

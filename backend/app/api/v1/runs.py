@@ -14,6 +14,7 @@ from synera_core.pipeline.orchestrator import STEPS
 from synera_core.pipeline.registry import get_registry
 from synera_core.provenance.ledger import Ledger
 
+from backend.app.core import config
 from backend.app.core.config import MAX_N_BOOT, MIN_N_BOOT
 from backend.app.core.deps import get_ledger
 from backend.app.db.database import engine, get_session
@@ -46,8 +47,13 @@ def create_run(req: RunRequest, session: Session = Depends(get_session), ledger:
     overrides: dict = {"alpha": req.alpha, "quick": req.quick}
     if req.n_boot:
         overrides["n_boot"] = req.n_boot
+    force = req.force
+    if config.LOW_MEMORY:   # never start a heavy computation: reuse the recorded quick run
+        overrides["quick"] = True
+        overrides.pop("n_boot", None)
+        force = False
     try:
-        run_id, reused = manager.start(session, ledger, req.dataset_id, overrides, req.force)
+        run_id, reused = manager.start(session, ledger, req.dataset_id, overrides, force)
     except RunConflict as exc:
         raise HTTPException(409, str(exc))
     return {"run_id": run_id, "reused": reused}
