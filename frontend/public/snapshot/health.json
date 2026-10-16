@@ -1,0 +1,1 @@
+{"status":"ok","version":"1.0.0","offline":true,"pipeline":"available","database":{"ok":true,"schema_version":2},"ledger":{"height":45,"chain_valid":true,"head":"e88598b2be3e07f87a58e18679038b47e084b2a10d332562ef510e35c7b9dad8","signer":"0e3e163dcfff043b7b7779c7e642e96c07a5f415eb3bdde220690fe4a7885de5","issues":[]},"counts":{"datasets":4,"runs":10,"findings":3}}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { isStatic } from '../../lib/snapshot';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError, type Check, type Dataset, type LedgerVerify, type TamperResult } from '../../lib/api';
@@ -351,18 +352,18 @@ export function TrustTamperSimulator() {
         <div className={`flex-1 min-w-[240px] max-w-md ${noMag ? 'opacity-50' : ''}`}>
           <label htmlFor="trust-mag" className="label !text-signal block mb-1">3 · How much to change</label>
           <div className="flex items-center gap-4">
-            <input id="trust-mag" type="range" min={0.001} max={0.5} step={0.001} value={magnitude} disabled={noMag} onChange={(e) => setMagnitude(Number(e.target.value))} className="flex-1 accent-[var(--alert)]" aria-valuetext={`${(magnitude * 100).toFixed(1)} percent of rows or cells`} />
-            <span className="num text-lg w-20 text-right">{(magnitude * 100).toFixed(1)}%</span>
+            <input id="trust-mag" type="range" min={0.001} max={0.5} step={0.001} value={isStatic ? 0.05 : magnitude} disabled={noMag || isStatic} onChange={(e) => setMagnitude(Number(e.target.value))} className="flex-1 accent-[var(--alert)]" aria-valuetext={`${(magnitude * 100).toFixed(1)} percent of rows or cells`} />
+            <span className="num text-lg w-20 text-right">{((isStatic ? 0.05 : magnitude) * 100).toFixed(1)}%</span>
           </div>
-          <div className="text-[11px] text-faint mt-1">{noMag ? 'This attack does not use a magnitude.' : 'Fraction of rows / cells altered (0.1% to 50%).'}</div>
+          <div className="text-[11px] text-faint mt-1">{noMag ? 'This attack does not use a magnitude.' : isStatic ? 'Recorded demo: this replays the attack recorded at 5%.' : 'Fraction of rows / cells altered (0.1% to 50%).'}</div>
         </div>
         <div>
           <label htmlFor="trust-seed" className="label block mb-1">Seed</label>
-          <input id="trust-seed" type="number" min={0} step={1} value={seed} onChange={(e) => setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0)))} className="num w-20 bg-void border border-line-strong px-2 py-1.5 text-sm" />
+          <input id="trust-seed" type="number" min={0} step={1} value={isStatic ? 1 : seed} disabled={isStatic} onChange={(e) => setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0)))} className="num w-20 bg-void border border-line-strong px-2 py-1.5 text-sm" />
         </div>
         <button type="button" disabled={run.isPending || !dsId || !mId} onClick={() => run.mutate({ dataset_id: dsId, mode: mId, magnitude: noMag ? 0.05 : magnitude, seed })}
           className="num text-sm tracking-[0.14em] px-6 py-3 border border-alert bg-alert/15 text-alert hover:bg-alert/25 disabled:opacity-50 cursor-pointer">
-          {run.isPending ? 'ATTACKING A COPY…' : '⚠ LAUNCH ATTACK'}
+          {run.isPending ? 'ATTACKING A COPY…' : isStatic ? '⚠ REPLAY RECORDED ATTACK' : '⚠ LAUNCH ATTACK'}
         </button>
       </div>
 

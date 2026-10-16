@@ -205,6 +205,8 @@ def simulate_attack(dataset_id: str, mode: str, magnitude: float = 0.05, seed: i
         rows = rng.choice(n, min(k, n), replace=False)
         sd = tampered[num].std().replace(0, 1.0)
         med = tampered[num].median()
+        if mode in ("subtle_edit", "row_edit", "inject_outliers", "drift_units"):
+            tampered[num] = tampered[num].astype(float)   # an integer column cannot hold a shifted or scaled value
         if mode == "subtle_edit":
             for r in rows:
                 c = num[int(rng.integers(0, len(num)))]

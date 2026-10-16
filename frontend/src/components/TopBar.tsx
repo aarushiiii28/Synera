@@ -3,6 +3,7 @@ import { useClock, useHealth } from '../lib/hooks';
 import { useUI } from '../store';
 import { HashGlyph } from './HashRing';
 import { int, shortHash } from '../lib/format';
+import { isStatic } from '../lib/snapshot';
 
 /** Calm instrument strip. States are CHECKING (neutral dashes), LIVE (real values) or OFFLINE (alert). Never shows VALID before data arrives. */
 export function TopBar() {
@@ -17,7 +18,7 @@ export function TopBar() {
       <div className="flex items-center gap-2 px-4 h-full border-r border-line">
         <span className={`w-2 h-2 rounded-full ${led} ${state === 'LIVE' ? 'pulse-soft' : ''}`} aria-hidden />
         <span className={`num tracking-[0.14em] ${state === 'OFFLINE' ? 'text-alert' : state === 'LIVE' ? 'text-text' : 'text-faint'}`}>
-          {state === 'OFFLINE' ? 'SIGNAL LOST' : state === 'LIVE' ? 'API LIVE' : 'CHECKING…'}
+          {state === 'OFFLINE' ? 'SIGNAL LOST' : state === 'LIVE' ? (isStatic ? 'RECORDED DEMO' : 'API LIVE') : 'CHECKING…'}
         </span>
       </div>
 

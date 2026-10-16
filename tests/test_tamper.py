@@ -46,6 +46,18 @@ def test_attacks_work_on_frames_with_boolean_flag_columns(reg):
         assert r["hash_match"] is False
 
 
+def test_attacks_work_on_frames_with_integer_columns(reg):
+    """Integer measurement columns (e.g. a wind or UV index stored as int) must be editable, not crash with a 500."""
+    import pandas as pd
+    df = pd.read_parquet(reg["path"])
+    first = next(c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and not pd.api.types.is_bool_dtype(df[c]) and c != "outcome")
+    df[first] = df[first].round().astype("int64")
+    df.to_parquet(reg["path"], index=False)
+    for mode in ("subtle_edit", "row_edit", "inject_outliers", "drift_units"):
+        r = simulate_attack("tiny_panel", mode, magnitude=0.2, seed=5, ledger=reg["ledger"])
+        assert r["hash_match"] is False
+
+
 def test_different_modes_do_not_return_identical_results(reg):
     a = simulate_attack("tiny_panel", "subtle_edit", magnitude=0.05, seed=3, ledger=reg["ledger"])
     b = simulate_attack("tiny_panel", "row_edit", magnitude=0.05, seed=3, ledger=reg["ledger"])

@@ -1,3 +1,5 @@
+import { isStatic, snapshotReq } from './snapshot';
+
 // Typed client for docs/API_CONTRACT.md. Every function maps 1:1 to a backend endpoint under /api/v1.
 
 export type Provenance = 'REAL' | 'SIMULATED';
@@ -20,6 +22,7 @@ const API_ORIGIN = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').
 const BASE = `${API_ORIGIN}/api/v1`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isStatic) return snapshotReq<T>(path, init, (s, c, m) => new ApiError(s, c, m));
   let res: Response;
   try {
     res = await fetch(BASE + path, { headers: { 'Content-Type': 'application/json' }, ...init });
