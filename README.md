@@ -42,6 +42,8 @@ make benchmark    # engine report card: 26-40 minutes, resumable
 make demo         # verify evidence, start API (8000) and web (5173)
 ```
 
+On Windows without `make`, run `.\dev.cmd` from the repository root: it starts the API (8000) and the web app (5173) with the project's own `.venv` Python, whatever Python is on your PATH. Starting the API by hand? Use the venv: `.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload` (from the root) or `uvicorn app.main:app --reload` (from `backend/`); a Python without the project's packages now stops with an explanation instead of a traceback.
+
 Or `docker compose up --build` → web on `http://localhost:8080` (the ledger and its signing key live in a named volume, never in an image).
 `make reproduce` re-runs every recorded analysis and compares the digest of its outputs with the ledger; mismatches are reported and the exit code is non-zero.
 

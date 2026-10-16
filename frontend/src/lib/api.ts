@@ -15,7 +15,9 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = '/api/v1';
+// Empty in dev and docker (same-origin proxy). Set VITE_API_URL to the API's public origin when the site and API are on different hosts (e.g. Vercel + Render).
+const API_ORIGIN = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/+$/, '');
+const BASE = `${API_ORIGIN}/api/v1`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -32,6 +34,8 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       msg = j?.error?.message ?? msg;
       code = j?.error?.code ?? code;
     } catch { /* non-JSON error body */ }
+    // 502/503/504 come from the dev server or proxy when nothing is listening behind it.
+    if ([502, 503, 504].includes(res.status)) msg = 'The SYNERA API is not running. Start it (dev.cmd, or make api) and retry.';
     throw new ApiError(res.status, code, msg);
   }
   return res.json() as Promise<T>;

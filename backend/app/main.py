@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Lets `uvicorn main:app` work when started from inside backend/app, where the repo root is not on the path.
+_ROOT = Path(__file__).resolve().parents[2]
+for _p in (_ROOT, _ROOT / "src"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
