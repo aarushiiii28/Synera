@@ -5,6 +5,7 @@ Provides repository root detection, schema validation, and cached settings acces
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -14,17 +15,32 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _is_root(p: Path) -> bool:
+    return (p / "configs" / "settings.yaml").exists() or (p / "pyproject.toml").exists()
+
+
 def find_repo_root(start_path: Path | None = None) -> Path:
-    """Detect repository root by traversing upward for marker files."""
+    """Detect the project root.
+
+    Order: ``SYNERA_ROOT`` if set, then upward from this file (a source checkout or editable install), then upward
+    from the working directory (a normal ``pip install`` puts this package in site-packages, far from the project,
+    which is how the Docker image runs it from ``/app``).
+    """
+    env = os.environ.get("SYNERA_ROOT")
+    if env and _is_root(Path(env)):
+        return Path(env).resolve()
     current = (start_path or Path(__file__)).resolve()
     if current.is_file():
         current = current.parent
-
     for parent in [current, *current.parents]:
-        if (parent / "configs" / "settings.yaml").exists() or (parent / "pyproject.toml").exists():
+        if _is_root(parent):
             return parent
+    if start_path is None:
+        cwd = Path.cwd().resolve()
+        for parent in [cwd, *cwd.parents]:
+            if _is_root(parent):
+                return parent
     return current
-
 
 class SeedsConfig(BaseModel):
     """Random seed configurations for deterministic reproducibility."""

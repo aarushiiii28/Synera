@@ -29,6 +29,15 @@ def slug(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9.-]+", "_", s).strip("_")
 
 
+def project_python() -> str:
+    """The project's own interpreter, whatever Python started this script (a bare python is often an empty venv)."""
+    for rel in ("Scripts/python.exe", "bin/python"):
+        p = ROOT / ".venv" / rel
+        if p.exists():
+            return str(p)
+    return sys.executable
+
+
 def outer(out: Path) -> int:
     """Copy what the API needs into a temp dir and re-run this script there."""
     tmp = Path(tempfile.mkdtemp(prefix="synera_snapshot_"))
@@ -38,7 +47,7 @@ def outer(out: Path) -> int:
         shutil.copy(ROOT / "pyproject.toml", tmp / "pyproject.toml")
         shutil.copytree(ROOT / "artifacts", tmp / "artifacts", ignore=shutil.ignore_patterns("benchmark_cache", "*.log", "*.err"))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(tmp / "src"), str(tmp)]), SYNERA_OFFLINE="1")
-        r = subprocess.run([sys.executable, str(tmp / "scripts" / "build_snapshot.py"), "--inner", "--out", str(out)], cwd=tmp, env=env)
+        r = subprocess.run([project_python(), str(tmp / "scripts" / "build_snapshot.py"), "--inner", "--out", str(out)], cwd=tmp, env=env)
         return r.returncode
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

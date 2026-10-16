@@ -3,7 +3,7 @@
 # signing key lives in this private image layer, so never push the image to a public registry. In docker compose the
 # artifacts volume is initialised from the image on first use and keeps the key and ledger afterwards.
 FROM python:3.11-slim AS base
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 OMP_NUM_THREADS=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 OMP_NUM_THREADS=1 SYNERA_ROOT=/app PYTHONPATH=/app/src
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 git && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml README.md ./
