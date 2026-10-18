@@ -11,13 +11,13 @@ SYNERA uses AI to **discover** interaction hypotheses, classical statistics to *
 
 | Layer | What it does | Where |
 |---|---|---|
-| 01 Data | NASA OSDR omics, Open-Meteo weather and air quality, Natural Earth; every file hashed and registered on entry | `src/synera_core/data`, `scripts/build_data.py` |
+| 01 Data | NASA OSDR omics, Open-Meteo weather and air quality, **CDC weekly deaths + EPA air monitors (real health outcome)**, Natural Earth; every file hashed and registered on entry | `src/synera_core/data`, `scripts/build_data.py`, `scripts/build_health_panel.py` |
 | 02 AI discovery | Panel-aware interaction test for every stressor pair, plus independent LightGBM-SHAP and neural-interaction second opinions; factorial OLS with empirical-Bayes moderation for omics | `src/synera_core/discovery` |
 | 03 Validation | BH-FDR, conditional selection (removes look-alike pairs), block-bootstrap intervals, effect-size gate, replication | `src/synera_core/validation`, `discovery/panel.py` |
 | 04 Cybersecurity | Baseline-calibrated anomaly detectors, model verification, source-drift detection, replay, tamper simulator | `src/synera_core/security` |
 | 05 Provenance | SHA-256, Merkle proofs, signed (Ed25519) hash-chained append-only ledger | `src/synera_core/provenance` |
 | 06 Web platform | FastAPI + React (NASA Earth observatory, evidence dossiers, Trust Center) | `backend/`, `frontend/` |
-| 07 Action | Compound-risk brief with uncertainty, sources and a reproducibility receipt | `src/synera_core/risk` |
+| 07 Action | Compound-risk brief with uncertainty, sources and a reproducibility receipt; **Scenario Lab**: pick a US state and season, set any mix of heat, weather and air pollution, and get the estimated consequence for deaths with an honest range (a model learned from real data, evaluated live in the browser) | `src/synera_core/risk`, `src/synera_core/prediction`, `frontend/src/app/pages/Scenario.tsx` |
 
 ```mermaid
 flowchart LR
@@ -72,6 +72,7 @@ Or `docker compose up --build` → web on `http://localhost:8080` (the ledger an
 |---|---|---|---|
 | A (REAL) | OSD-211 spleen and OSD-237 skin RNA-seq, radiation × hindlimb unloading, n = 6/6/3/6 | NASA Open Science Data Repository / GeneLab | public; the two studies share 20 of 21 animals |
 | B (covariates REAL, outcome SIMULATED) | 8 cities × 518 days of weather and air quality | Open-Meteo archives | CC BY 4.0; outcome is generated with known planted interactions |
+| C (REAL outcome) | Weekly all-cause, heart-disease and stroke deaths for 38 to 46 US states, 2014 to 2019 (14,065 complete state-weeks), joined to the weather and air pollution each state experienced | CDC NCHS (public domain); US EPA Air Quality System monitors (public domain); Open-Meteo / ERA5 (CC BY 4.0); NASA POWER UV index (public domain) | built by `scripts/build_health_panel.py`; the processed panels are tracked, raw downloads are not; COVID-19 years are excluded on purpose |
 | reference | land polygons; gene symbols; Earth imagery | Natural Earth (public domain); MyGene.info; NASA Visible Earth (public domain) | symbol map is hashed and registered |
 
 ## Measured results (all computed; see `artifacts/results/benchmark.json`, `space_biology.json`)
@@ -94,10 +95,19 @@ Or `docker compose up --build` → web on `http://localhost:8080` (the ledger an
 
 **Security.** On clean data held out from each detector's baseline (100 random splits), false alarms are 2-5% per statistical detector (isolation forest 3%, MCD 5%, autoencoder 5%, drift 2%) and 10% of clean datasets trigger at least one advisory warning; the physical-range, duplicate and label checks never fired. The cryptographic hash caught 100% of 600 attack trials. Physical-range checks caught every decimal-shift, unit-drift and outlier injection; **subtle in-range edits (+0.3 SD) and flipped labels were caught by no statistical detector in 8 of 20 attack × contamination cells; only the hash saw them.** MCD and the autoencoder never fired at these attack strengths yet raise 5% false alarms each, so they currently add noise, not protection. This is why the hash, not the statistics, is what blocks a result.
 
+**Real health outcomes (Track C and the Scenario Lab; CDC deaths x EPA monitors x ERA5 weather, 2014 to 2019).**
+
+* **What the engine found: no interaction.** For all-cause, heart-disease and stroke deaths the engine tested all 45 stressor pairs; none survived FDR control and conditional selection. An earlier pass that did *not* remove nationwide flu and weather waves had flagged an ozone x UV pattern; it disappeared once each state was compared only with the other states in the same week. A discovery that does not survive the obvious confounder is withdrawn, not reported.
+* **What the data do support: separate effects.** Same-week comparisons across states give, for all-cause deaths, **+0.62% per +10 ug/m3 PM2.5** (90% interval 0.34 to 0.83), +0.36% per +10 ug/m3 NO2, +0.09% per +10 ug/m3 ozone, **+0.36% for a heat index 5 C above normal in summer** and **+0.51% for 5 C below normal in winter**; heart-disease deaths respond more strongly (PM2.5 +1.45% per +10 ug/m3, 0.95 to 2.01).
+* **How well the model predicts places it never saw** (leave-states-out): calibration slope **0.91 [0.64, 1.22]** all causes, 0.97 [0.81, 1.13] heart disease, 0.93 [0.60, 1.21] stroke (1 = perfect); the riskiest tenth of weeks had +0.51% excess deaths against +0.62% predicted, the safest tenth -0.55% against -0.59%. It explains only **0.7% of week-to-week variation** (flu, ageing and chance dominate) and a gradient-boosting second opinion does no better.
+* **Interactions between stressors are small if they exist at all:** on an unshrunken fit, 7 of 45 pair terms differ from zero where about 4.5 are expected by chance, and an extra effect larger than about 0.4% per usual-deviation squared would very likely have been seen.
+* The model is a short list of coefficients, evaluated in the browser; `frontend/src/tests/scenario.test.ts` checks the TypeScript against the Python to 9 decimals. It never claims more than its interval: "no clear effect" is shown when the data cannot separate a scenario from a typical week, and conditions far from what a state has experienced are flagged as extrapolation.
+
 ## Limitations and honest claims
 
 * **VERIFIED ≠ biologically proven.** It means statistically validated plus verified provenance.
-* **No finding is VERIFIED today.** Track B findings are simulated and capped at VALIDATED; Track A has nothing that passes FDR and no independent replication set.
+* **No finding is VERIFIED today.** Track B findings are simulated and capped at VALIDATED; Track A has nothing that passes FDR and no independent replication set; Track C (real deaths) has no interaction finding at all, and its separate effects would need an independent dataset to be VERIFIED.
+* **Track C is ecological and approximate.** Exposure is one metro area's weather and the state's mean monitor reading (many monitors sample 1 day in 3 or 6), weekly totals hide short spikes, and results are average associations between local conditions and state-week deaths, not individual risk and not proof of cause. Exposure error blurs real effects toward zero, so true effects are probably somewhat larger than shown.
 * **Track B is semi-synthetic.** It measures the engine, not nature. Strict FDR counts correlated look-alike pairs as false.
 * **Track A is underpowered** (n = 6/6/3/6). Large cell-to-cell variance, a mis-labelled-sample check by sample name only, and tissue differences limit what the tissue pair can show.
 * Log2 additivity is multiplicative independence on the fold-change scale. Variance moderation is an approximation of limma (method-of-moments prior), not limma itself.
@@ -108,7 +118,7 @@ Or `docker compose up --build` → web on `http://localhost:8080` (the ledger an
 
 ## Quality gates (last run)
 
-75 Python tests (core, pipeline, tamper, API) · 45 frontend tests · `ruff` clean · `tsc` and production build clean · Playwright end-to-end smoke (`npm run e2e`: Observatory → engine run → finding → re-verify → tamper → ledger still valid) passes · 9 notebooks execute headless without errors · `make reproduce` reports REPRODUCED · `npm audit --omit=dev`: 0 vulnerabilities · pinned Python environment in `requirements.lock`.
+85 Python tests (core, pipeline, tamper, scenario model, API) · 56 frontend tests, including a check that the TypeScript Scenario predictor matches the Python one to 9 decimals · `ruff` clean · real type-check (`tsc -p tsconfig.app.json`) and production build clean · three Playwright end-to-end suites pass: `npm run e2e` (Observatory → engine run → finding → re-verify → tamper → ledger still valid), `npm run e2e:scenario` (presets, sliders, season effect, outcome and state switching, phone layout) and `npm run e2e:static` (the whole recorded demo with the API switched off) · `make reproduce` reports REPRODUCED for all six analyses and 25/25 registered files match the ledger · 9 notebooks executed headless earlier in the project · `npm audit --omit=dev`: 0 vulnerabilities · pinned Python environment in `requirements.lock`. Not tested here: the Docker images and the hosted Render and Vercel deployments themselves (their build steps were reproduced locally from a clean copy).
 
 ## Repository map
 

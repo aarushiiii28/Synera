@@ -86,7 +86,8 @@ def inner(out: Path) -> int:
 
         for p in ("/health", "/ledger/head", "/ledger/verify", "/runs/steps", "/stressors", "/space-biology/overview",
                   "/space-biology/genes?limit=20", "/space-biology/genes?compact=true&limit=30000", "/benchmark/results",
-                  "/experiments", "/security/modes", "/security/false-alarm-rates", "/risk/regions"):
+                  "/experiments", "/security/modes", "/security/false-alarm-rates", "/risk/regions", "/scenario/outcomes",
+                  "/scenario/model?outcome=all", "/scenario/model?outcome=heart", "/scenario/model?outcome=stroke"):
             record(p)
 
         # --- datasets

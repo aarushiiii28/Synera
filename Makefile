@@ -1,4 +1,4 @@
-.PHONY: setup check test lint api web notebooks data seed benchmark space demo reproduce docker clean
+.PHONY: setup check test lint api web notebooks data seed benchmark space panel scenario demo reproduce docker clean
 
 PY ?= python
 ifeq ($(OS),Windows_NT)
@@ -36,7 +36,13 @@ space:           ## Track A gene-level analysis (real NASA data)
 benchmark:       ## Engine report card (about 30-40 minutes; resumable)
 	$(VENV_PY) scripts/run_benchmark.py
 
-seed:            ## run the real pipeline and fill the application database
+panel:           ## Track C: download CDC deaths + EPA air + weather once and build the real health panels (needs internet)
+	$(VENV_PY) scripts/build_health_panel.py
+
+scenario:        ## fit the Scenario Lab models from the real panels (about a minute)
+	$(VENV_PY) scripts/build_scenario_model.py
+
+seed:            ## run the real pipeline (all five engine runs, a few minutes) and fill the application database
 	$(VENV_PY) scripts/seed_db.py
 
 # --- run --------------------------------------------------------------------------------------------

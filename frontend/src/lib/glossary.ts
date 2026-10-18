@@ -24,5 +24,9 @@ export const GLOSSARY: Record<string, { title: string; text: string }> = {
   proxy: { title: 'Proxy / explained away', text: 'A pair that looks significant only because a correlated stressor belongs to a truly interacting pair.' },
   conditional: { title: 'Conditional selection', text: 'After accepting the strongest interaction, the rest are re-tested with it in the model. This removes look-alikes.' },
   hlu: { title: 'Hindlimb unloading', text: 'A standard ground model of microgravity: the animal’s hind legs are lifted so they bear no weight.' },
+  usualdev: { title: 'Usual deviation', text: 'How far a stressor typically strays from its normal level in this state at this time of year. +2 means twice that typical swing above normal.' },
+  excess: { title: 'Excess deaths', text: 'Deaths above (or below) what is expected for this state and week from its own trend and season.' },
+  calibration: { title: 'Calibration', text: 'Whether predictions match reality in places the model never saw. A slope of 1 is perfect; below 1 means predictions were too extreme.' },
+  weekfe: { title: 'Same-week comparison', text: 'Each state is compared with the other states in the same week, so a nationwide flu wave or heat wave cannot masquerade as an effect of a local stressor.' },
   baseline: { title: 'Baseline', text: 'The registered, trusted reference. Detectors flag departures from it.' },
 };

@@ -1,4 +1,5 @@
 import { isStatic, snapshotReq } from './snapshot';
+import type { ScenarioModel } from './scenario';
 
 // Typed client for docs/API_CONTRACT.md. Every function maps 1:1 to a backend endpoint under /api/v1.
 
@@ -69,7 +70,7 @@ export interface LedgerVerify { valid: boolean; height: number; head: string | n
 export interface MerkleProof { artifact_hash: string; block_index: number; block_type: string; merkle_root: string; merkle_proof: { side: 'L' | 'R'; hash: string }[]; verified: boolean }
 
 export interface Dataset {
-  id: string; name: string; track: 'A' | 'B'; kind: 'covariates' | 'panel' | 'factorial'; provenance: Provenance; hash: string;
+  id: string; name: string; track: 'A' | 'B' | 'C'; kind: 'covariates' | 'panel' | 'factorial'; provenance: Provenance; hash: string;
   features_count: number; samples_count: number; description: string; role: string; runnable: boolean; path: string;
   summary: Record<string, unknown> & { rows?: number; cities?: number; date_start?: string; date_end?: string; available?: boolean };
   qc: Record<string, unknown>; ledger_block: number | null;
@@ -93,7 +94,7 @@ export interface Gate { id: string; label: string; passed: boolean; reason: stri
 
 export interface Effect { b_AB: number; ci_low: number; ci_high: number; cohens_d: number; effect_size?: number | null; eff_ci_low?: number | null; eff_ci_high?: number | null }
 export interface Finding {
-  id: string; run_id: string; track: 'A' | 'B'; provenance: Provenance; evidence_level: EvidenceLevel; dataset_id: string;
+  id: string; run_id: string; track: 'A' | 'B' | 'C'; provenance: Provenance; evidence_level: EvidenceLevel; dataset_id: string;
   stressors: [string, string]; feature: string | null; type: InteractionType; status: Status; effect: Effect;
   stats: { p: number; q: number; n: number; df: number; p_naive?: number; p_hac?: number; q_marginal?: number; p_bilinear?: number; p_nonlinear?: number; lambda_boot?: number };
   methods: { parametric: boolean; gbm: boolean; nid: boolean; gbm_rank?: number | null; nid_rank?: number | null };
@@ -182,6 +183,7 @@ export interface Risk {
   forecast?: RiskDay[]; verified_real_findings?: string[];
   receipt: { run_id: string; config_hash: string; result_hash: string | null; dataset_hash: string; ledger_block: number | null; replay_matches: boolean | null }[];
 }
+export interface ScenarioOutcome { id: string; label: string; available: boolean; dataset_id?: string; rows?: number; states?: number; calibration_slope?: number; calibration_slope_ci?: [number, number]; r2_leave_states_out?: number }
 export interface Experiment { run_id: string; dataset_id: string; status: string; config_hash: string; result_hash: string; ledger_block: number | null; runtime_s: number | null; created_at: number; replay_matches: boolean | null; summary: Record<string, number>; params: Record<string, unknown> }
 
 // ---------- endpoints ----------
@@ -222,6 +224,9 @@ export const api = {
   tamperModes: () => get<{ mode: string; description: string }[]>('/security/modes'),
   simulateTamper: (b: { dataset_id: string; mode: string; magnitude?: number; seed?: number }) => post<TamperResult>('/security/simulate-tamper', b),
   falseAlarms: () => get<FalseAlarm>('/security/false-alarm-rates'),
+
+  scenarioOutcomes: () => get<ScenarioOutcome[]>('/scenario/outcomes'),
+  scenarioModel: (outcome = 'all') => get<ScenarioModel>('/scenario/model' + qs({ outcome })),
 
   riskRegions: () => get<{ id: string; lat: number; lon: number }[]>('/risk/regions'),
   risk: (region: string) => get<Risk>('/risk/assessment' + qs({ region })),

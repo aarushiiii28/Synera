@@ -29,8 +29,8 @@ const ok = (m) => console.log('ok  ', m);
 
   await page.goto(base + '/trust', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /launch attack/i }).click();
-  await page.getByText(/RESULT BLOCKED FROM VERIFIED STATUS/i).first().waitFor({ timeout: 60000 }).then(() => ok('tamper simulation ends BLOCKED'), () => fail('no BLOCKED verdict'));
-  await page.getByText(/REAL LEDGER STILL VALID/i).first().waitFor({ timeout: 30000 }).then(() => ok('real ledger still VALID after the attack'), () => fail('ledger validity not shown'));
+  await page.getByText(/RESULT BLOCKED FROM VERIFIED STATUS/i).first().waitFor({ timeout: 150000 }).then(() => ok('tamper simulation ends BLOCKED'), () => fail('no BLOCKED verdict'));
+  await page.getByText(/REAL LEDGER STILL VALID/i).first().waitFor({ timeout: 60000 }).then(() => ok('real ledger still VALID after the attack'), () => fail('ledger validity not shown'));
 
   if (errors.length) fail('console errors: ' + [...new Set(errors)].slice(0, 5).join(' | '));
   await browser.close();

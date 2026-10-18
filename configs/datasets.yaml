@@ -58,11 +58,35 @@ datasets:
     outcome: "simulated outcome with planted synergistic, antagonistic and non-linear interactions"
     status: "INGESTED"
 
-# Track C (optional, only if real health-outcome data is supplied): the adapter interface is
-# synera_core.data.health.HealthOutcomeAdapter. Example: CDC NCHS weekly respiratory deaths joined to Open-Meteo.
-# - id: "climate_health"
-#   track: "C"
-#   provenance: "REAL"
-#   design: "continuous"
-#   stressors: ["heat_index", "pm25", "o3"]
-#   outcome: "weekly respiratory deaths"
+  - id: "us_mortality"
+    track: "C"
+    title: "US weekly all-cause deaths x weather x air pollution, 46 states, 2014-2019"
+    source: "CDC NCHS weekly deaths (data.cdc.gov 3yf8-kanr); US EPA AQS daily monitors; Open-Meteo/ERA5 weather; NASA POWER UV index. Built by scripts/build_health_panel.py"
+    provenance: "REAL"
+    files: ["data/processed/us_mortality_panel.parquet", "data/processed/us_mortality_panel_qc.json"]
+    design: "continuous"
+    stressors: ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    outcome: "excess all-cause mortality in %, vs the state's own trend and season, minus the national value that week"
+    status: "INGESTED"
+
+  - id: "us_heart"
+    track: "C"
+    title: "US weekly heart-disease deaths x weather x air pollution, 46 states"
+    source: "as us_mortality, cause = diseases of the heart"
+    provenance: "REAL"
+    files: ["data/processed/us_heart_panel.parquet"]
+    design: "continuous"
+    stressors: ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    outcome: "excess heart-disease mortality in %, same construction"
+    status: "INGESTED"
+
+  - id: "us_stroke"
+    track: "C"
+    title: "US weekly stroke deaths x weather x air pollution, 38 states"
+    source: "as us_mortality, cause = cerebrovascular diseases (states where the CDC does not suppress small counts)"
+    provenance: "REAL"
+    files: ["data/processed/us_stroke_panel.parquet"]
+    design: "continuous"
+    stressors: ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
+    outcome: "excess stroke mortality in %, same construction"
+    status: "INGESTED"

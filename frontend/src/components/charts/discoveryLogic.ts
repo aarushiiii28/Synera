@@ -146,7 +146,7 @@ export function parseFilters(sp: URLSearchParams): FindingFilters {
   return {
     status: pick(sp.get('status'), ['CANDIDATE', 'VALIDATED', 'VERIFIED', 'BLOCKED', 'REJECTED']),
     type: pick(sp.get('type'), ['SYNERGISTIC', 'ANTAGONISTIC', 'NONLINEAR']),
-    track: pick(sp.get('track'), ['A', 'B']),
+    track: pick(sp.get('track'), ['A', 'B', 'C']),
     provenance: pick(sp.get('provenance'), ['REAL', 'SIMULATED']),
     q: (sp.get('q') ?? '').slice(0, 60),
     sort: pick(sp.get('sort'), SORT_KEYS) || DEFAULT_SORT,

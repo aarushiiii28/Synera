@@ -9,13 +9,13 @@ import { int } from '../../lib/format';
 import { useUI } from '../../store';
 
 const LAYERS = [
-  { n: '01', t: 'Data', d: 'Climate, air-quality and NASA space-biology data, hashed and registered the moment they enter.', to: '/space-biology', tone: 'var(--signal)' },
+  { n: '01', t: 'Data', d: 'Climate, air-quality, NASA space-biology and CDC mortality data, hashed and registered the moment they enter.', to: '/space-biology', tone: 'var(--signal)' },
   { n: '02', t: 'AI discovery engine', d: 'A statistical model tests every stressor pair; LightGBM-SHAP and a neural detector give independent second opinions.', to: '/discovery', tone: 'var(--signal)' },
   { n: '03', t: 'Scientific validation', d: 'False-discovery control, effect size, block-bootstrap intervals, conditional selection and replication.', to: '/findings', tone: 'var(--teal)' },
   { n: '04', t: 'Cybersecurity', d: 'Tamper, poisoning and drift detection; model and pipeline integrity; only integrity-critical failures block a result.', to: '/trust', tone: 'var(--alert)' },
   { n: '05', t: 'Provenance', d: 'SHA-256 fingerprints and a signed, hash-chained ledger with Merkle proofs. Tamper-evident, not proof of the science.', to: '/trust', tone: 'var(--biosphere)' },
   { n: '06', t: 'Web intelligence platform', d: 'This interface: findings, evidence dossiers, graphs, validation status, confidence and experiment history.', to: '/findings', tone: 'var(--signal)' },
-  { n: '07', t: 'Action', d: 'A compound-risk brief with uncertainty, sources and a reproducibility receipt.', to: '/risk', tone: 'var(--solar)' },
+  { n: '07', t: 'Action', d: 'A compound-risk brief and a what-if Scenario Lab, each with uncertainty, sources and a reproducibility receipt.', to: '/risk', tone: 'var(--solar)' },
 ];
 
 export default function Guide() {

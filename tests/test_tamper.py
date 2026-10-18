@@ -82,3 +82,17 @@ def test_ledger_tamper_breaks_the_copy_not_the_real_chain(reg):
     assert r["ledger"]["before"]["valid"] is True
     assert r["ledger"]["after"]["valid"] is False
     assert reg["ledger"].verify()["valid"] is True
+
+
+def test_a_row_edit_always_changes_the_data(reg):
+    """Multiplying a zero by 10 is a no-op, which would show 'no tampering' for a real edit: the simulator must pick a cell that changes."""
+    import pandas as pd
+    df = pd.read_parquet(reg["path"])
+    cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c != "outcome"]
+    df.loc[:, cols] = 0.0
+    for i in range(len(df)):                      # almost every cell is zero, but every row has one real value: a naive random pick would usually hit a zero
+        df.iloc[i, df.columns.get_loc(cols[i % len(cols)])] = 2.0
+    df.to_parquet(reg["path"], index=False)
+    for seed in range(8):
+        r = simulate_attack("tiny_panel", "row_edit", magnitude=0.001, seed=seed, ledger=reg["ledger"])
+        assert r["hash_match"] is False, f"seed {seed}: the edit changed nothing"

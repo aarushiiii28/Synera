@@ -11,6 +11,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "e2e": "node e2e/smoke.cjs",
+    "e2e:scenario": "node e2e/scenario.cjs",
+    "e2e:static": "node e2e/static.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

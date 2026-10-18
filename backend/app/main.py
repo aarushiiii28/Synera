@@ -36,6 +36,7 @@ TAGS = [
     {"name": "Findings", "description": "Candidate to verified findings, evidence bundles and the live VERIFIED gate."},
     {"name": "Interactions", "description": "Stressor-pair matrix and network from the latest run."},
     {"name": "Space Biology", "description": "Track A: real NASA OSDR radiation x unloading data."},
+    {"name": "Scenario", "description": "Track C: effect of combined weather and air-pollution conditions on weekly deaths, learned from real US data."},
     {"name": "Benchmark", "description": "Engine report card (simulated) and experiment history."},
     {"name": "Security", "description": "Tamper simulator on temporary copies and detector reliability."},
     {"name": "Risk", "description": "Compound-risk brief from validated findings."},

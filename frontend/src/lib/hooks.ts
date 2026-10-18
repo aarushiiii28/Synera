@@ -5,6 +5,8 @@ import { api, runEventsUrl, type RunEvent } from './api';
 export const useHealth = () => useQuery({ queryKey: ['health'], queryFn: api.health, refetchInterval: 15000, retry: false });
 export const useDatasets = () => useQuery({ queryKey: ['datasets'], queryFn: api.datasets });
 export const useStressors = () => useQuery({ queryKey: ['stressors'], queryFn: api.stressors, staleTime: Infinity });
+export const useScenarioModel = (outcome: string) => useQuery({ queryKey: ['scenario-model', outcome], queryFn: () => api.scenarioModel(outcome), staleTime: Infinity });
+export const useScenarioOutcomes = () => useQuery({ queryKey: ['scenario-outcomes'], queryFn: api.scenarioOutcomes, staleTime: Infinity });
 export const useFindings = (o: Parameters<typeof api.findings>[0] = {}) =>
   useQuery({ queryKey: ['findings', o], queryFn: () => api.findings(o) });
 

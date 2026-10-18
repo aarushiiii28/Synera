@@ -63,20 +63,37 @@ def _is_measure(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s)
 
 
+def _measure_columns(df: pd.DataFrame) -> list[str]:
+    """Numeric, non-boolean columns, chosen from the dtypes at once (a per-column loop is slow on 24,000-gene tables)."""
+    return [c for c, t in df.dtypes.items() if pd.api.types.is_numeric_dtype(t) and not pd.api.types.is_bool_dtype(t)]
+
+
 def _numeric_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if _is_measure(df[c]) and c not in ("outcome",)] or list(df.columns[:1])
+    return [c for c in _measure_columns(df) if c != "outcome"] or list(df.columns[:1])
 
 
-def _scan(clean: pd.DataFrame, tampered: pd.DataFrame, meta: pd.DataFrame | None, kind: str) -> dict[str, Any]:
+# What is identical between attacks on the same file is computed once: the original's fingerprint and the detectors' baseline.
+_ORIGINAL_HASH: dict[tuple, str] = {}
+_BASELINES: dict[tuple, tuple] = {}
+
+
+def _scan(clean: pd.DataFrame, tampered: pd.DataFrame, meta: pd.DataFrame | None, kind: str, cache_key: tuple | None = None) -> dict[str, Any]:
     if kind == "factorial":                      # 21 samples x ~25k genes: scan principal-component scores
-        Xc, Xt = clean.to_numpy(float), tampered.to_numpy(float)
-        mu = Xc.mean(0)
-        _, _, vt = np.linalg.svd(Xc - mu, full_matrices=False)
+        key = (cache_key, "factorial") if cache_key else None
+        if key and key in _BASELINES:
+            mu, vt, base = _BASELINES[key]
+        else:
+            Xc = clean.to_numpy(float)
+            mu = Xc.mean(0)
+            _, _, vt = np.linalg.svd(Xc - mu, full_matrices=False)
+            cols = [f"PC{i + 1}" for i in range(5)]
+            base = Baseline.from_frame(pd.DataFrame((Xc - mu) @ vt[:5].T, columns=cols))
+            if key:
+                _BASELINES[key] = (mu, vt, base)
         cols = [f"PC{i + 1}" for i in range(5)]
-        base = Baseline.from_frame(pd.DataFrame((Xc - mu) @ vt[:5].T, columns=cols))
-        rep = scan_dataset(pd.DataFrame((Xt - mu) @ vt[:5].T, columns=cols), baseline=base)
+        rep = scan_dataset(pd.DataFrame((tampered.to_numpy(float) - mu) @ vt[:5].T, columns=cols), baseline=base)
     else:
-        num = [c for c in clean.columns if _is_measure(clean[c])]
+        num = _measure_columns(clean)
         base = Baseline.from_frame(clean[num], meta=meta[0] if meta else None)
         extra = [c for c in ("city", "date") if c in tampered.columns]
         rep = scan_dataset(tampered[[*extra, *num]], meta=meta[1] if meta else None, baseline=base)
@@ -179,7 +196,11 @@ def simulate_attack(dataset_id: str, mode: str, magnitude: float = 0.05, seed: i
 
     clean, src, kind = _frame_for(dataset_id)
     orig_file_sha = sha256_file(src)
-    orig_df_hash = sha256_dataframe(clean)
+    stat = src.stat()
+    cache_key = (str(src), stat.st_mtime_ns, stat.st_size)
+    if cache_key not in _ORIGINAL_HASH:
+        _ORIGINAL_HASH[cache_key] = sha256_dataframe(clean)
+    orig_df_hash = _ORIGINAL_HASH[cache_key]
     tampered = clean.copy()
     detections: list[str] = []
     notes = None
@@ -206,14 +227,19 @@ def simulate_attack(dataset_id: str, mode: str, magnitude: float = 0.05, seed: i
         sd = tampered[num].std().replace(0, 1.0)
         med = tampered[num].median()
         if mode in ("subtle_edit", "row_edit", "inject_outliers", "drift_units"):
-            tampered[num] = tampered[num].astype(float)   # an integer column cannot hold a shifted or scaled value
+            # an integer column cannot hold a shifted or scaled value; convert only those (assigning 24,000 float columns one by one is very slow)
+            ints = [c for c, t in tampered[num].dtypes.items() if not pd.api.types.is_float_dtype(t)]
+            if ints:
+                tampered[ints] = tampered[ints].astype(float)
         if mode == "subtle_edit":
             for r in rows:
                 c = num[int(rng.integers(0, len(num)))]
                 tampered.loc[tampered.index[r], c] = tampered.loc[tampered.index[r], c] + 0.3 * sd[c]
         elif mode == "row_edit":
             for r in rows:
-                c = num[int(rng.integers(0, len(num)))]
+                # multiplying a zero by 10 changes nothing, so pick a cell the edit actually changes
+                nonzero = np.flatnonzero(tampered.iloc[r][num].to_numpy(float) != 0)
+                c = num[int(nonzero[rng.integers(0, len(nonzero))])] if len(nonzero) else num[int(rng.integers(0, len(num)))]
                 tampered.loc[tampered.index[r], c] = tampered.loc[tampered.index[r], c] * 10.0
         elif mode == "inject_outliers":
             for r in rows:
@@ -245,7 +271,7 @@ def simulate_attack(dataset_id: str, mode: str, magnitude: float = 0.05, seed: i
         tampered_file_sha = sha256_file(tmp)
         shutil.rmtree(tmpdir, ignore_errors=True)
         hash_changed = tampered_df_hash != orig_df_hash
-        scan = _scan(clean, tampered, meta_pair, kind)
+        scan = _scan(clean, tampered, meta_pair, kind, cache_key)
 
     if hash_changed:
         detections.append("hash_mismatch")

@@ -35,6 +35,25 @@ The earlier log reported the project as complete through Part 8. Auditing the re
 | 8 Pages | done | every page reads the real API with designed empty states |
 | 9 Integration and hardening | done | `make demo`, `make reproduce`, Docker, CI, docs, demo script |
 
+## Part 10: real health outcomes and the Scenario Lab
+
+Until now every outcome in the interaction engine was simulated. This part adds a **real** one and a tool built on it.
+
+| Piece | What it does | Where |
+|---|---|---|
+| Real panels (Track C) | CDC weekly deaths (all causes, heart disease, stroke) for 38 to 46 US states, 2014 to 2019, joined to EPA air monitors, ERA5 weather and NASA POWER UV; 14,065 complete state-weeks for all-cause deaths; outcome = excess mortality in % over each state's own trend and season, minus the national value that week | `scripts/build_health_panel.py`, `src/synera_core/data/health.py`, `data/processed/us_*_panel.parquet` |
+| Engine on real data | the existing nine-step pipeline, ledger, replay and gates run unchanged on the three panels | `us_mortality`, `us_heart`, `us_stroke` in the registry |
+| Scenario model | transparent regression (same-week comparisons, heat curve that changes with the season, penalised pairwise products), cluster-bootstrap intervals, checked leave-states-out against a gradient-boosting second opinion | `src/synera_core/prediction/scenario.py`, `scripts/build_scenario_model.py` |
+| Scenario Lab | choose state, season and any mix of the ten stressors; instant estimate with range, breakdown, dose-response, two-stressor map, trust panel | `frontend/src/app/pages/Scenario.tsx`, `frontend/src/lib/scenario.ts` (browser twin of the Python predictor, tested to 9 decimals) |
+
+What was measured, and what was learned:
+
+* **No interaction survives in real deaths.** 45 pairs x 3 causes of death, none past FDR and conditional selection. The first pass (on the raw outcome) had flagged ozone x UV and heat x drought; both vanished after removing nationwide flu and weather waves, which is exactly the kind of false discovery the project exists to catch.
+* **Separate effects are real and plausible.** All causes: PM2.5 +0.62% per +10 ug/m3 (0.34 to 0.83), NO2 +0.36%, ozone +0.09%, heat 5 C above normal +0.36% in summer, cold 5 C below normal +0.51% in winter; heart disease responds more (PM2.5 +1.45%).
+* **Honest accuracy.** On unseen states calibration slope 0.91 (0.64 to 1.22) all causes; 0.7% of week-to-week variation explained; gradient boosting does no better.
+* **Bugs the work found and fixed:** the tamper simulator crashed on integer columns (500 errors) and could report "no tampering" for a row edit that hit a zero cell; a heavy ridge penalty halved the real effect sizes (now only the uncertain products are strongly penalised); a Docker-style install resolved the project root to the wrong folder, silently skipping build steps; my own pandas fix for integer columns made the NASA attacks 4x slower (fixed, and repeat attacks are now cached); the Python/TypeScript twins are guarded by a shared fixture test.
+* Engine runs on the real panels take 1 to 6 minutes each depending on machine load; `seed_db.py --core` builds only the NASA, benchmark and all-cause runs for slow machines, `make seed` builds all five.
+
 ## Headline measured results
 
 * Engine (Track B, SIMULATED): full stack recall 90–97% of planted interactions; strict FDR 6.2% / 0.7% / 0% / 0% at SNR 1 / 2 / 5 / 20. The marginal pairwise screen alone is ~92% false; conditional selection removes it.

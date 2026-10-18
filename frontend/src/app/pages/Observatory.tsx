@@ -90,6 +90,7 @@ export default function Observatory() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3 rise" style={{ animationDelay: '240ms' }}>
             <button onClick={startTour} className="num text-sm tracking-[0.1em] px-5 py-3 border border-signal bg-signal/10 text-signal hover:bg-signal/20">▶ TAKE THE 3-MINUTE TOUR</button>
+            <Link to="/scenario" className="num text-sm tracking-[0.1em] px-5 py-3 border border-biosphere bg-biosphere/10 text-biosphere hover:bg-biosphere/20">TRY THE SCENARIO LAB →</Link>
             <Link to="/discovery" className="num text-sm tracking-[0.1em] px-5 py-3 border border-line-strong text-text hover:border-text">RUN THE ENGINE →</Link>
           </div>
           <p className="mt-10 display text-sm tracking-[0.2em] uppercase text-text/80">AI generates hypotheses. <span className="text-biosphere">Science validates them.</span></p>
@@ -98,9 +99,10 @@ export default function Observatory() {
 
       <PipelineStrip />
 
-      <section className="px-6 md:px-10 pb-16 grid md:grid-cols-3 gap-8 border-t border-line pt-10">
+      <section className="px-6 md:px-10 pb-16 grid md:grid-cols-2 xl:grid-cols-4 gap-8 border-t border-line pt-10">
         {[
           { t: 'Track A · REAL', c: 'text-biosphere', d: 'NASA space-biology data: radiation × hindlimb unloading in mouse spleen and skin. Small samples, honest limits.', to: '/space-biology' },
+          { t: 'Track C · REAL OUTCOMES', c: 'text-biosphere', d: 'CDC weekly deaths in 46 US states joined to EPA air pollution and weather. Scenario Lab: combine stressors and see the estimated consequence.', to: '/scenario' },
           { t: 'Track B · SIMULATED', c: 'text-solar', d: 'Real weather and air-quality covariates with a planted, known interaction outcome. It measures how good the engine is.', to: '/benchmark' },
           { t: 'The trust layer', c: 'text-signal', d: 'SHA-256 fingerprints, anomaly detection, a signed hash-chained ledger and a replay of every run.', to: '/trust' },
         ].map((x) => (

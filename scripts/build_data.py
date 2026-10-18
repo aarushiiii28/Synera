@@ -40,6 +40,15 @@ def main() -> int:
         register_file(ledger, env_path, "dataset", {"description": "Environmental stressor panel", "provenance": "REAL"},
                       manifest_path=manifest)
 
+    print("1b. US weekly mortality x weather x air pollution (real health outcome; built by scripts/build_health_panel.py)")
+    hp = root / "data" / "processed" / "us_mortality_panel.parquet"
+    for p in (hp, hp.with_name("us_mortality_panel_qc.json"), hp.with_name("us_heart_panel.parquet"), hp.with_name("us_stroke_panel.parquet")):
+        if p.exists():
+            register_file(ledger, p, "dataset", {"description": "US weekly mortality x weather x air pollution (Track C)", "provenance": "REAL"},
+                          manifest_path=manifest)
+    if not hp.exists():
+        print("   panel missing: run  python scripts/build_health_panel.py")
+
     print("2. NASA OSDR studies (real files in data/raw/manual/osdr/<ID>/)")
     cfg = yaml.safe_load((root / "configs" / "datasets.yaml").read_text())
     for role in ("discovery", "replication"):

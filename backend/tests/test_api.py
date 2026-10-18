@@ -101,9 +101,15 @@ def test_low_memory_host_refuses_neural_attack_scans_but_runs_hash_attacks(clien
 
 
 def test_low_memory_host_never_starts_a_heavy_run(client, monkeypatch):
-    """Forced or full-size re-runs are turned into the recorded quick run on a low-memory host."""
+    """Forced or full-size re-runs become the recorded quick run; with no recorded run the host says so instead of computing."""
+    import time
+
+    from sqlmodel import Session
+
     from backend.app.api.v1 import runs
     from backend.app.core import config
+    from backend.app.db.database import engine
+    from backend.app.db.models import Run
     seen = {}
 
     def fake_start(session, ledger, dataset_id, overrides, force):
@@ -112,6 +118,12 @@ def test_low_memory_host_never_starts_a_heavy_run(client, monkeypatch):
 
     monkeypatch.setattr(config, "LOW_MEMORY", True)
     monkeypatch.setattr(runs.manager, "start", fake_start)
-    r = client.post(f"{B}/runs", json={"dataset_id": "osd-211", "force": True, "quick": False, "n_boot": 400})
+    body = {"dataset_id": "osd-211", "force": True, "quick": False, "n_boot": 400}
+    r = client.post(f"{B}/runs", json=body)
+    assert r.status_code == 400 and "too little memory" in r.json()["error"]["message"] and not seen        # nothing recorded: refuse, do not compute
+    with Session(engine) as s:
+        s.add(Run(id="run_rec", dataset_id="osd-211", status="COMPLETED", created_at=time.time()))
+        s.commit()
+    r = client.post(f"{B}/runs", json=body)
     assert r.status_code == 202
     assert seen["force"] is False and seen["overrides"]["quick"] is True and "n_boot" not in seen["overrides"]

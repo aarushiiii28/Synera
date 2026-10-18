@@ -52,6 +52,8 @@ def create_run(req: RunRequest, session: Session = Depends(get_session), ledger:
         overrides["quick"] = True
         overrides.pop("n_boot", None)
         force = False
+        if session.exec(select(Run).where(Run.dataset_id == req.dataset_id, Run.status == "COMPLETED")).first() is None:
+            raise HTTPException(400, f"no recorded run for '{req.dataset_id}' and this host has too little memory to compute one; run SYNERA locally or on a larger host")
     try:
         run_id, reused = manager.start(session, ledger, req.dataset_id, overrides, force)
     except RunConflict as exc:

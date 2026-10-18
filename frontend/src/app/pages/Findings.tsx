@@ -22,6 +22,7 @@ export default function Findings() {
   const f = useMemo(() => parseFilters(sp), [sp]);
   const set = (patch: Partial<FindingFilters>) => setSp(filtersToParams({ ...f, page: 1, ...patch }), { replace: true });
   const q = useFindings(toApiQuery(f));
+  const real = useFindings({ track: 'C', limit: 1 });
   const st = useStressors();
   const nm = (k: string) => st.data?.[k]?.label ?? k;
   const items = q.data?.items ?? [];
@@ -74,13 +75,14 @@ export default function Findings() {
           ))}
         </ul>
         {counts && counts.VERIFIED === 0 && <p className="text-[13px] text-muted mt-2 mb-0">0 verified is expected here: VERIFIED needs REAL data and independent replication. <Link to="/guide" className="text-signal">How a finding earns it</Link>.</p>}
+        {real.data && real.data.total === 0 && <p className="text-[13px] text-muted mt-1 mb-0">On the <b>real</b> US mortality data (Track C) the engine kept nothing: after removing nationwide flu and weather waves no pair of stressors showed a combined effect that survives the tests. Their separate effects are real and are in the <Link to="/scenario" className="text-signal">Scenario Lab</Link>.</p>}
       </section>
 
       {/* instrument strip */}
       <section aria-label="Filters" className="px-6 md:px-10 mb-6">
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-b border-line pb-4">
           {([
-            ['status', 'Status', STATUSES], ['type', 'Type', ['SYNERGISTIC', 'ANTAGONISTIC', 'NONLINEAR']], ['track', 'Track', ['A', 'B']], ['provenance', 'Provenance', ['REAL', 'SIMULATED']],
+            ['status', 'Status', STATUSES], ['type', 'Type', ['SYNERGISTIC', 'ANTAGONISTIC', 'NONLINEAR']], ['track', 'Track', ['A', 'B', 'C']], ['provenance', 'Provenance', ['REAL', 'SIMULATED']],
           ] as const).map(([k, label, opts]) => (
             <label key={k} className="grid gap-1"><span className="label">{label}</span>
               <select className={SEL} value={f[k]} onChange={(e) => set({ [k]: e.target.value })}>

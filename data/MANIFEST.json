@@ -18,6 +18,33 @@
       },
       "sha256": "3ae8455f5acb844ba33199849c893e6a9f215756b531b7836669220b6561d31a"
     },
+    "artifacts/results/scenario_model_all.json": {
+      "block_index": 80,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "type": "result"
+      },
+      "sha256": "0b5bb37ebf1003ae0a01779a49343e618ceca0a3ea0568fb26402a9d433e6d94"
+    },
+    "artifacts/results/scenario_model_heart.json": {
+      "block_index": 81,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "type": "result"
+      },
+      "sha256": "1e0e46b68dd452fd4b927fbd276552d4d3be14ee281622fbb43e785425ae9894"
+    },
+    "artifacts/results/scenario_model_stroke.json": {
+      "block_index": 82,
+      "kind": "dataset",
+      "meta": {
+        "provenance": "REAL",
+        "type": "result"
+      },
+      "sha256": "477412bd7fe5bae3b38e0efae60088655bef885d1035a6be084cba470aac58a3"
+    },
     "artifacts/results/space_biology.json": {
       "block_index": 26,
       "kind": "dataset",
@@ -102,6 +129,42 @@
       },
       "sha256": "85dc1ae9f0697a6c2e6cfea3e31a394a9a5aafdd15c576d31a06c1df16ca7f51"
     },
+    "data/processed/us_heart_panel.parquet": {
+      "block_index": 64,
+      "kind": "dataset",
+      "meta": {
+        "description": "US weekly mortality x weather x air pollution (Track C)",
+        "provenance": "REAL"
+      },
+      "sha256": "7e84ef04c36068d432cb7993dbdae6246ba312d421af5d41a88d96da68e9f193"
+    },
+    "data/processed/us_mortality_panel.parquet": {
+      "block_index": 61,
+      "kind": "dataset",
+      "meta": {
+        "description": "US weekly mortality x weather x air pollution (Track C)",
+        "provenance": "REAL"
+      },
+      "sha256": "f992493820866184a09dbae85a47a7052aeee381874b1290b1ff6c0f9fd0b7c4"
+    },
+    "data/processed/us_mortality_panel_qc.json": {
+      "block_index": 62,
+      "kind": "dataset",
+      "meta": {
+        "description": "US weekly mortality x weather x air pollution (Track C)",
+        "provenance": "REAL"
+      },
+      "sha256": "0ff8a3850629491718b7961cfd421b0ab0474c99ec81cf66a4b85bb75a8264bc"
+    },
+    "data/processed/us_stroke_panel.parquet": {
+      "block_index": 65,
+      "kind": "dataset",
+      "meta": {
+        "description": "US weekly mortality x weather x air pollution (Track C)",
+        "provenance": "REAL"
+      },
+      "sha256": "1e3cdb8cb4544044ae8c398812c0dea1133877e3fa4471e28bb8d6c9d3991556"
+    },
     "data/raw/manual/osdr/OSD-211/GLDS-211_rna_seq_Normalized_Counts_rRNArm_GLbulkRNAseq.csv": {
       "block_index": 1,
       "kind": "dataset",
@@ -180,6 +243,6 @@
       "sha256": "378618e4a4b3ea731aee40eb079cd159ec5897c73ad3894b512f9f6b0be46cda"
     }
   },
-  "generated_at": "2026-10-16T18:40:41.728961+00:00",
+  "generated_at": "2026-10-17T09:42:40.549106+00:00",
   "version": "1.0.0"
 }

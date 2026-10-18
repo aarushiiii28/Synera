@@ -1,6 +1,6 @@
 """First-run setup for a fresh checkout or container (idempotent):
 
-    restore shipped results -> registers tracked datasets in the ledger -> Track A results if missing -> seeds the database.
+    restore shipped results -> registers tracked datasets in the ledger -> Track A results if missing -> Scenario Lab models -> seeds the database.
 
 The Track B benchmark report is a ~30 minute job and is NOT run here. The last measured report is shipped in
 ``data/results/`` and copied into ``artifacts/results/`` when missing. To refresh it, run ``make benchmark`` and
@@ -38,6 +38,7 @@ def main() -> None:
     results = ROOT / "artifacts" / "results"
     if not (results / "space_biology.json").exists() or not (results / "osdr_genes.json").exists():
         run("scripts/build_space_biology.py")
+    run("scripts/build_scenario_model.py")     # the Scenario Lab models, fitted from the tracked real panels (about a minute)
     run("scripts/seed_db.py", *sys.argv[1:])
 
 

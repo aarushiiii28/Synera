@@ -6,6 +6,7 @@ Ids are stable API identifiers:
     benchmark_track_b  SIMULATED planted-interaction outcome on the real covariates (Track B)
     osd-211            REAL      NASA OSDR spleen RNA-seq, radiation x hindlimb unloading (Track A, discovery)
     osd-237            REAL      NASA OSDR skin RNA-seq, same design (Track A, replication tissue)
+    us_mortality       REAL      CDC weekly deaths x EPA air x ERA5 weather, 50 US states 2014-2019 (Track C, real health outcome)
 """
 
 from __future__ import annotations
@@ -70,6 +71,18 @@ def get_registry() -> dict[str, DatasetSpec]:
                         description=f"Real covariates with a SIMULATED outcome (SNR {BENCHMARK_SNR}, seed {BENCHMARK_SEED}) that has "
                                     "known synergistic, antagonistic and non-linear interactions. Measures the engine, not nature.",
                         units="standardised"),
+            DatasetSpec("us_mortality", "US weekly deaths x weather x air pollution", "C", "panel", "REAL",
+                        "data/processed/us_mortality_panel.parquet",
+                        description="REAL health outcome: CDC weekly all-cause deaths for 50 US states, 2014-2019, joined to ERA5 weather and "
+                                    "EPA air-pollution monitors. The outcome is excess mortality in % over each state's own trend and season."),
+            DatasetSpec("us_heart", "US weekly heart-disease deaths x weather x air pollution", "C", "panel", "REAL",
+                        "data/processed/us_heart_panel.parquet",
+                        description="REAL health outcome: CDC weekly deaths from heart disease, 46 US states, 2014-2019, same weather and air-pollution "
+                                    "inputs as us_mortality. Excess deaths in % over each state's own trend and season, minus the national value that week."),
+            DatasetSpec("us_stroke", "US weekly stroke deaths x weather x air pollution", "C", "panel", "REAL",
+                        "data/processed/us_stroke_panel.parquet",
+                        description="REAL health outcome: CDC weekly deaths from cerebrovascular disease (stroke), 38 US states with enough data, 2014-2019, "
+                                    "same inputs as us_mortality."),
             DatasetSpec("osd-211", "NASA OSDR OSD-211: spleen RNA-seq", "A", "factorial", "REAL",
                         "data/processed/osdr_OSD-211_expr.parquet", "data/processed/osdr_OSD-211_meta.parquet",
                         description="Mouse spleen, chronic low-dose radiation x hindlimb unloading (2x2).", role="discovery"),

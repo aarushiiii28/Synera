@@ -1,0 +1,35 @@
+{
+  "title": "US weekly all-cause mortality joined to weather and air pollution, 2014-2019",
+  "provenance": "REAL",
+  "rows": 14065,
+  "states": 46,
+  "date_start": "2014-01-04",
+  "date_end": "2019-12-28",
+  "coverage_of_state_weeks": {
+    "heat_index": 1.0,
+    "pm25": 0.974888178913738,
+    "rh": 1.0,
+    "o3": 0.9785942492012779,
+    "drought_index": 1.0,
+    "pm10": 0.9561022364217252,
+    "no2": 0.9275399361022364,
+    "uv": 1.0,
+    "wind": 1.0,
+    "precip": 1.0
+  },
+  "complete_state_weeks": 0.8987220447284345,
+  "states_dropped_for_too_few_complete_weeks": {},
+  "sources": {
+    "deaths": "CDC NCHS Weekly Counts of Deaths by State and Select Causes, 2014-2019 (data.cdc.gov 3yf8-kanr), public domain",
+    "air": "US EPA Air Quality System daily summary files (aqs.epa.gov/aqsweb/airdata), public domain",
+    "weather": "Open-Meteo historical archive (ERA5), CC BY 4.0, https://open-meteo.com",
+    "uv": "NASA POWER all-sky surface UV index (ALLSKY_SFC_UV_INDEX), daily, public domain"
+  },
+  "outcome": "excess all-cause mortality in %: 100 x (log weekly deaths - the state's own fitted trend and 3 annual harmonics), minus the death-weighted average of all states in the same week (removes nationwide flu waves and weather); outcome_raw keeps the version without that subtraction",
+  "limitations": [
+    "Exposure is one metro area's weather and the state's mean monitor reading, so it is only a proxy for what the state's people breathed; this blurs real effects toward zero.",
+    "Weekly state totals hide the day-level heat response; effects are weekly and ecological, not individual.",
+    "Many states run particle and NO2 monitors only 1 day in 3 or 6, so a week's value averages only the days measured: noisier, which also blurs real effects toward zero.",
+    "New York is excluded (CDC splits New York City from the rest of the state; monitors cannot be split the same way)."
+  ]
+}
