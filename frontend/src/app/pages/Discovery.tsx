@@ -17,6 +17,10 @@ import { DiscoveryMatrix } from '../../components/charts/DiscoveryMatrix';
 import { DiscoveryConstellation } from '../../components/charts/DiscoveryConstellation';
 import { DiscoveryCurves, TypeGlyph } from '../../components/charts/DiscoveryCurves';
 import { ResponseSurface } from '../../components/charts/ResponseSurface';
+import { ScreenAuditView } from '../../components/charts/ScreenAudit';
+import { CrossCheck } from '../../components/charts/CrossCheck';
+
+const INDIA_PAIR: Record<string, string> = { india_grid: 'india_grid_b', india_grid_b: 'india_grid' };
 import { explainedAway, funnelStages, overallProgress, runBanner, stepViews, type StepView } from '../../components/charts/discoveryLogic';
 
 const FLOW = [
@@ -179,6 +183,8 @@ export default function Discovery() {
 
   // matrix / network for the dataset
   const matrix = useQuery({ queryKey: ['matrix', dsId], queryFn: () => api.matrix(dsId as string), enabled: !!dsId && !geneLevel, retry: false });
+  const otherId = dsId ? INDIA_PAIR[dsId] : undefined;
+  const otherMatrix = useQuery({ queryKey: ['matrix', otherId], queryFn: () => api.matrix(otherId as string), enabled: !!otherId, retry: false });
   const network = useQuery({ queryKey: ['network', dsId], queryFn: () => api.network(dsId as string), enabled: !!dsId && !geneLevel, retry: false });
   const strongest = useMemo(() => {
     const sel = (matrix.data?.cells ?? []).filter((c) => c.category === 'selected' && c.finding_id);
@@ -359,6 +365,27 @@ export default function Discovery() {
           )}
         </Panel>
       </div>
+
+      {/* DOES IT REPEAT IN OTHER STATES (India grid panels) */}
+      {dsId && INDIA_PAIR[dsId] && matrix.data && (
+        <div className="px-6 md:px-10 mt-12">
+          <Panel variant="ruled" title="Does it repeat in other states?" index="G" provenance={dataset?.provenance}>
+            {otherMatrix.isLoading ? <Skeleton h={120} /> : otherMatrix.data ? (
+              <CrossCheck here={matrix.data} other={otherMatrix.data} hereName={dataset?.name ?? dsId} otherName={ds.data?.find((d) => d.id === INDIA_PAIR[dsId])?.name ?? INDIA_PAIR[dsId]} labels={stressors.data} />
+            ) : <p className="text-sm text-muted m-0">The other panel has no completed run yet, so there is nothing to compare with.</p>}
+          </Panel>
+        </div>
+      )}
+
+      {/* STANDARD SCREEN VS SYNERA */}
+      {dsId && !geneLevel && matrix.data && (
+        <div className="px-6 md:px-10 mt-12">
+          <Panel variant="ruled" title="What a standard screen would have reported" index="F" provenance={dataset?.provenance}>
+            <ScreenAuditView matrix={matrix.data} labels={stressors.data} simulated={dataset?.provenance === 'SIMULATED'}
+              developmentNote={dsId.startsWith('us_') ? 'On these real death records, an earlier pass that did not remove nationwide flu and weather waves had flagged ozone x UV and heat x drought; both vanished once each state was compared only with other states in the same week.' : undefined} />
+          </Panel>
+        </div>
+      )}
 
       {/* TYPES */}
       <div className="px-6 md:px-10 mt-12">

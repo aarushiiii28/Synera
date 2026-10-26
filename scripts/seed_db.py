@@ -27,7 +27,7 @@ from synera_core.provenance.manifest import register_file
 from synera_core.provenance.store import open_ledger
 
 
-ALL_RUNNABLE = ("osd-211", "benchmark_track_b", "us_mortality", "us_heart", "us_stroke")
+ALL_RUNNABLE = ("osd-211", "benchmark_track_b", "us_mortality", "us_heart", "us_stroke", "india_grid", "india_grid_b")
 CORE = ("osd-211", "benchmark_track_b", "us_mortality")      # a shorter build for slow machines (each real-data run takes 1 to 6 minutes depending on the load)
 
 
@@ -63,5 +63,6 @@ if __name__ == "__main__":
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--core", action="store_true", help="only the core runs (NASA, benchmark, all-cause deaths): faster, for deployed images")
+    ap.add_argument("--only", nargs="+", metavar="DATASET", help="run only these dataset ids (for example: --only india_grid india_grid_b)")
     a = ap.parse_args()
-    seed(a.quick, a.force, CORE if a.core else ALL_RUNNABLE)
+    seed(a.quick, a.force, tuple(a.only) if a.only else CORE if a.core else ALL_RUNNABLE)

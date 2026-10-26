@@ -90,3 +90,25 @@ datasets:
     stressors: ["heat_index", "pm25", "rh", "o3", "drought_index", "pm10", "no2", "uv", "wind", "precip"]
     outcome: "excess stroke mortality in %, same construction"
     status: "INGESTED"
+
+  - id: "india_grid"
+    track: "D"
+    title: "India daily electricity supplied x state weather, 8 large states, 2019-2024"
+    source: "Grid-India (POSOCO) daily energy met per state and state-level ERA5 weather, packaged by Hunt and Bloomfield (Zenodo 10.5281/zenodo.14983362, CC BY 4.0). Built by scripts/build_india_grid_panel.py"
+    provenance: "REAL"
+    files: ["data/processed/india_grid_panel.parquet", "data/processed/india_grid_panel_qc.json"]
+    design: "continuous"
+    stressors: ["tmax", "rh", "wind", "solar", "cloud"]
+    outcome: "% above the state's own expected electricity supplied (trend, season, weekday); a non-health outcome (grid stress)"
+    status: "INGESTED"
+
+  - id: "india_grid_b"
+    track: "D"
+    title: "India daily electricity supplied x state weather, 8 other states (a check across states)"
+    source: "as india_grid, different states"
+    provenance: "REAL"
+    files: ["data/processed/india_grid_b_panel.parquet", "data/processed/india_grid_b_panel_qc.json"]
+    design: "continuous"
+    stressors: ["tmax", "rh", "wind", "solar", "cloud"]
+    outcome: "same construction as india_grid"
+    status: "INGESTED"

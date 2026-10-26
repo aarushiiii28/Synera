@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Finding, MatrixCell, RunEvent, Surface } from '../lib/api';
 import {
-  activeFilterCount, caveatKinds, diamondRadius, explainedAway, filtersToParams, findingSentence, forestSpan, funnelStages, nextSort, overallProgress,
-  pageCount, parseFilters, peakGap, peakGapIndex, pInflationOrders, runBanner, stepViews, toApiQuery, transect, verdictState,
+  activeFilterCount, caveatKinds, crossCheck, diamondRadius, explainedAway, filtersToParams, findingSentence, forestSpan, funnelStages, nextSort, overallProgress,
+  pageCount, parseFilters, peakGap, peakGapIndex, pInflationOrders, runBanner, screenAudit, stepViews, toApiQuery, transect, verdictState,
 } from '../components/charts/discoveryLogic';
 
 const ev = (step: number, status: RunEvent['status'], data: Record<string, unknown> = {}, name = 'X'): RunEvent => ({
@@ -43,6 +43,42 @@ describe('funnel', () => {
   it('is null when the run has no pair stages', () => {
     expect(funnelStages({ ...run, stage_counts: null })).toBeNull();
     expect(funnelStages({ ...run, events: [] })).toBeNull();
+  });
+});
+
+describe('standard screen audit', () => {
+  const cell = (o: Partial<MatrixCell>): MatrixCell => ({
+    a: 'x', b: 'y', category: 'not_significant', type: null, status: null, finding_id: null, effect_size: null, q_marginal: 0.5,
+    p_conditional: null, gbm_rank: null, nid_rank: null, methods: null, p_naive: 0.9, ...o });
+  it('lists what each approach would flag and what survived', () => {
+    const a = screenAudit([
+      cell({ a: 'a', b: 'b', p_naive: 0.001, gbm_rank: 1, category: 'selected', status: 'VALIDATED' }),
+      cell({ a: 'a', b: 'c', p_naive: 0.01, nid_rank: 3, category: 'explained_away' }),
+      cell({ a: 'b', b: 'c', p_naive: 0.03 }),
+      cell({ a: 'c', b: 'd' }),
+    ]);
+    expect(a).toMatchObject({ total: 4, plain: 3, trees: 1, neural: 1, flagged: 3, survived: 1 });
+    expect(a.rows[0].survived).toBe(true);
+    expect(a.rows.map((r) => r.verdict)).toEqual(expect.arrayContaining(['Copycat of a stronger pair', 'Almost certainly chance']));
+  });
+  it('reports zero flagged when nothing is flagged', () => {
+    expect(screenAudit([cell({})])).toMatchObject({ flagged: 0, survived: 0 });
+  });
+});
+
+describe('cross-check between two panels', () => {
+  const c = (a: string, b: string, status: MatrixCell['status'], eff: number | null = 0.1): MatrixCell => ({
+    a, b, category: status ? 'selected' : 'not_significant', type: null, status, finding_id: null, effect_size: eff, q_marginal: 0.01,
+    p_conditional: null, gbm_rank: null, nid_rank: null, methods: null, p_naive: 0.01 });
+  it('counts pairs kept in both, only here and only there, whatever the order of a and b', () => {
+    const r = crossCheck(
+      [c('t', 'r', 'VALIDATED', 0.14), c('t', 'c', 'VALIDATED'), c('w', 'c', 'CANDIDATE')],
+      [c('r', 't', 'VALIDATED', 0.18), c('s', 'c', 'VALIDATED'), c('t', 'c', 'REJECTED')]);
+    expect(r).toMatchObject({ both: 1, onlyHere: 1, onlyOther: 1 });
+    expect(r.rows[0]).toMatchObject({ here: true, other: true, effectHere: 0.14, effectOther: 0.18 });
+  });
+  it('is empty when nothing was kept', () => {
+    expect(crossCheck([c('a', 'b', null)], [c('a', 'b', 'CANDIDATE')]).rows).toEqual([]);
   });
 });
 

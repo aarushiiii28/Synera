@@ -83,6 +83,58 @@ export function cellAriaLabel(c: MatrixCell, la: string, lb: string): string {
   return `${la} by ${lb}: no evidence of interaction`;
 }
 
+// ---------- standard screen vs the full stack ----------
+export interface AuditRow { a: string; b: string; flaggedBy: string[]; survived: boolean; verdict: string; why: string; q: number }
+export interface ScreenAudit { total: number; plain: number; trees: number; neural: number; flagged: number; survived: number; rows: AuditRow[] }
+
+/** What a plain test, a tree model or a neural network used alone would have handed over, checked against what survived the full stack. All from the run record. */
+export function screenAudit(cells: MatrixCell[], topk = 6, alpha = 0.05): ScreenAudit {
+  const rows: AuditRow[] = [];
+  let plain = 0, trees = 0, neural = 0;
+  for (const c of cells) {
+    const by: string[] = [];
+    if (c.p_naive < alpha) { by.push('plain test'); plain++; }
+    if (c.gbm_rank != null && c.gbm_rank <= topk) { by.push('tree model'); trees++; }
+    if (c.nid_rank != null && c.nid_rank <= topk) { by.push('neural network'); neural++; }
+    if (!by.length) continue;
+    const survived = c.status === 'VALIDATED' || c.status === 'VERIFIED';
+    const only = by.length === 1 ? `Only the ${by[0]} flagged it` : 'Flagged by more than one method';
+    let verdict: string, why: string;
+    if (survived) { verdict = 'Real, survived every check'; why = 'Passed the corrected test, the effect-size gate and a second method.'; }
+    else if (c.category === 'explained_away') { verdict = 'Copycat of a stronger pair'; why = 'It only looked significant because it resembles another pair that explains the pattern.'; }
+    else if (c.category === 'not_significant' && c.q_marginal >= 0.5) { verdict = 'Almost certainly chance'; why = `${only}, but the corrected test sees nothing there.`; }
+    else if (c.category === 'not_significant') { verdict = 'Weak hint, not enough'; why = `${only}; after correcting for repeated testing the evidence is too weak to call.`; }
+    else { verdict = 'Too small to act on'; why = 'Statistically detectable, but the effect is below the minimum or no second method agrees.'; }
+    rows.push({ a: c.a, b: c.b, flaggedBy: by, survived, verdict, why, q: c.q_marginal });
+  }
+  rows.sort((x, y) => Number(y.survived) - Number(x.survived) || y.flaggedBy.length - x.flaggedBy.length);
+  return { total: cells.length, plain, trees, neural, flagged: rows.length, survived: rows.filter((r) => r.survived).length, rows };
+}
+
+// ---------- the same question on two disjoint sets of places ----------
+export interface CrossRow { a: string; b: string; here: boolean; other: boolean; effectHere: number | null; effectOther: number | null }
+
+const kept = (c: MatrixCell) => c.status === 'VALIDATED' || c.status === 'VERIFIED';
+
+/** Pairs kept (VALIDATED or better) in this panel and/or the other one, with how many appear in both. */
+export function crossCheck(here: MatrixCell[], other: MatrixCell[]): { rows: CrossRow[]; both: number; onlyHere: number; onlyOther: number } {
+  const o = cellLookup(other);
+  const rows: CrossRow[] = [];
+  const seen = new Set<string>();
+  for (const c of here) {
+    const k = pairKey(c.a, c.b); seen.add(k);
+    const d = o.get(k);
+    const h = kept(c), t = !!d && kept(d);
+    if (h || t) rows.push({ a: c.a, b: c.b, here: h, other: t, effectHere: h ? c.effect_size : null, effectOther: t ? d!.effect_size : null });
+  }
+  for (const d of other) {
+    const k = pairKey(d.a, d.b);
+    if (!seen.has(k) && kept(d)) rows.push({ a: d.a, b: d.b, here: false, other: true, effectHere: null, effectOther: d.effect_size });
+  }
+  rows.sort((x, y) => Number(y.here && y.other) - Number(x.here && x.other) || Number(y.here) - Number(x.here));
+  return { rows, both: rows.filter((r) => r.here && r.other).length, onlyHere: rows.filter((r) => r.here && !r.other).length, onlyOther: rows.filter((r) => !r.here && r.other).length };
+}
+
 // ---------- response surface ----------
 export interface Transect { axis: 'a' | 'b'; index: number; at: number; xs: number[]; add: number[]; full: number[]; gap: number[] }
 
@@ -146,7 +198,7 @@ export function parseFilters(sp: URLSearchParams): FindingFilters {
   return {
     status: pick(sp.get('status'), ['CANDIDATE', 'VALIDATED', 'VERIFIED', 'BLOCKED', 'REJECTED']),
     type: pick(sp.get('type'), ['SYNERGISTIC', 'ANTAGONISTIC', 'NONLINEAR']),
-    track: pick(sp.get('track'), ['A', 'B', 'C']),
+    track: pick(sp.get('track'), ['A', 'B', 'C', 'D']),
     provenance: pick(sp.get('provenance'), ['REAL', 'SIMULATED']),
     q: (sp.get('q') ?? '').slice(0, 60),
     sort: pick(sp.get('sort'), SORT_KEYS) || DEFAULT_SORT,

@@ -67,6 +67,10 @@ export default function Guide() {
               <p className="text-sm text-muted m-0">NASA Open Science Data Repository studies OSD-211 (spleen) and OSD-237 (skin): mice exposed to chronic low-dose radiation, hindlimb unloading, both or neither. Same animals, two tissues.</p></div>
             <div className="border-t border-solar pt-3"><div className="num text-xs text-solar tracking-[0.14em] mb-1">TRACK B · SIMULATED</div>
               <p className="text-sm text-muted m-0">Real weather and air quality (Open-Meteo, 8 cities, Aug 2022 – Dec 2023) with an outcome we generated, containing known interactions. It tells us how good the engine is. It can never reach VERIFIED.</p></div>
+            <div className="border-t border-biosphere pt-3"><div className="num text-xs text-biosphere tracking-[0.14em] mb-1">TRACK C · REAL OUTCOMES</div>
+              <p className="text-sm text-muted m-0">CDC weekly deaths in US states joined to EPA air-pollution monitors and ERA5 weather, 2014–2019. The engine finds no interaction here; the separate effects are real and power the Scenario Lab.</p></div>
+            <div className="border-t border-biosphere pt-3"><div className="num text-xs text-biosphere tracking-[0.14em] mb-1">TRACK D · REAL, NOT HEALTH</div>
+              <p className="text-sm text-muted m-0">Daily electricity supplied to 16 Indian states (Grid-India), 2019 – 2024, joined to state-level ERA5 weather, in two panels of eight states each. The outcome is stress on the power grid, so it tests whether the engine finds real combined weather effects on a real system.</p></div>
           </div>
         </section>
 

@@ -37,7 +37,7 @@ def _get(session: Session, finding_id: str) -> Finding:
 @router.get("", summary="Findings registry with filters, sorting and pagination")
 def list_findings(
     status: Literal["CANDIDATE", "VALIDATED", "VERIFIED", "BLOCKED", "REJECTED"] | None = None,
-    track: Literal["A", "B", "C"] | None = None,
+    track: Literal["A", "B", "C", "D"] | None = None,
     type: Literal["SYNERGISTIC", "ANTAGONISTIC", "NONLINEAR"] | None = None,
     provenance: Literal["REAL", "SIMULATED"] | None = None,
     dataset_id: str | None = None,
@@ -108,7 +108,7 @@ def finding_forest(finding_id: str, session: Session = Depends(get_session)):
     row = _get(session, finding_id)
     e = row.effect
     rows = [{"name": "Bilinear interaction coefficient (all data)", "effect": e.get("b_AB"), "ci_low": e.get("ci_low"),
-             "ci_high": e.get("ci_high"), "unit": "outcome SD" if row.track in ("B", "C") else "log2"}]
+             "ci_high": e.get("ci_high"), "unit": "outcome SD" if row.track in ("B", "C", "D") else "log2"}]
     if e.get("effect_size") is not None:
         rows.append({"name": "Interaction surface effect size (all data)", "effect": e["effect_size"], "ci_low": e.get("eff_ci_low"),
                      "ci_high": e.get("eff_ci_high"), "unit": "outcome SD"})

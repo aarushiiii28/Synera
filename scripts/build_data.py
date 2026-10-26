@@ -49,6 +49,15 @@ def main() -> int:
     if not hp.exists():
         print("   panel missing: run  python scripts/build_health_panel.py")
 
+    print("1c. India daily electricity supplied x weather (real non-health outcome; built by scripts/build_india_grid_panel.py)")
+    for stem in ("india_grid", "india_grid_b"):
+        for p in (root / "data" / "processed" / f"{stem}_panel.parquet", root / "data" / "processed" / f"{stem}_panel_qc.json"):
+            if p.exists():
+                register_file(ledger, p, "dataset", {"description": "India daily electricity supplied x weather (Track D)", "provenance": "REAL"},
+                              manifest_path=manifest)
+            else:
+                print(f"   {p.name} missing: run  python scripts/build_india_grid_panel.py")
+
     print("2. NASA OSDR studies (real files in data/raw/manual/osdr/<ID>/)")
     cfg = yaml.safe_load((root / "configs" / "datasets.yaml").read_text())
     for role in ("discovery", "replication"):

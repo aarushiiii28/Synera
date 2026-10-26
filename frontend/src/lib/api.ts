@@ -70,7 +70,7 @@ export interface LedgerVerify { valid: boolean; height: number; head: string | n
 export interface MerkleProof { artifact_hash: string; block_index: number; block_type: string; merkle_root: string; merkle_proof: { side: 'L' | 'R'; hash: string }[]; verified: boolean }
 
 export interface Dataset {
-  id: string; name: string; track: 'A' | 'B' | 'C'; kind: 'covariates' | 'panel' | 'factorial'; provenance: Provenance; hash: string;
+  id: string; name: string; track: 'A' | 'B' | 'C' | 'D'; kind: 'covariates' | 'panel' | 'factorial'; provenance: Provenance; hash: string;
   features_count: number; samples_count: number; description: string; role: string; runnable: boolean; path: string;
   summary: Record<string, unknown> & { rows?: number; cities?: number; date_start?: string; date_end?: string; available?: boolean };
   qc: Record<string, unknown>; ledger_block: number | null;
@@ -94,7 +94,7 @@ export interface Gate { id: string; label: string; passed: boolean; reason: stri
 
 export interface Effect { b_AB: number; ci_low: number; ci_high: number; cohens_d: number; effect_size?: number | null; eff_ci_low?: number | null; eff_ci_high?: number | null }
 export interface Finding {
-  id: string; run_id: string; track: 'A' | 'B' | 'C'; provenance: Provenance; evidence_level: EvidenceLevel; dataset_id: string;
+  id: string; run_id: string; track: 'A' | 'B' | 'C' | 'D'; provenance: Provenance; evidence_level: EvidenceLevel; dataset_id: string;
   stressors: [string, string]; feature: string | null; type: InteractionType; status: Status; effect: Effect;
   stats: { p: number; q: number; n: number; df: number; p_naive?: number; p_hac?: number; q_marginal?: number; p_bilinear?: number; p_nonlinear?: number; lambda_boot?: number };
   methods: { parametric: boolean; gbm: boolean; nid: boolean; gbm_rank?: number | null; nid_rank?: number | null };

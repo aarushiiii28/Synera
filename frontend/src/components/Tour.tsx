@@ -17,7 +17,8 @@ export function Tour() {
   if (step === null) return null;
   const t = TOUR[step];
   return (
-    <aside role="dialog" aria-label="Guided tour" className="fixed z-[60] bottom-4 right-4 left-4 md:left-auto md:w-[26rem] border border-signal/60 bg-void/95 p-5 crop no-print">
+    <aside role="dialog" aria-label="Guided tour" className="fixed z-[60] bottom-4 right-4 left-4 md:left-auto md:w-[26rem] border border-signal/60 p-5 crop no-print backdrop-blur-xl"
+      style={{ background: 'rgba(2, 6, 13, 0.78)', WebkitBackdropFilter: 'blur(18px) saturate(1.2)', boxShadow: '0 12px 40px rgba(0,0,0,0.45)' }}>
       <div className="flex items-center gap-2 mb-2">
         <span className="num text-[10px] tracking-[0.16em] text-signal">STOP {step + 1} OF {TOUR.length}</span>
         <span className="num text-[10px] tracking-[0.16em] text-biosphere">{t.step}</span>

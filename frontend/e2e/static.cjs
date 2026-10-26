@@ -46,6 +46,12 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   await p.goto(base + '/scenario', { waitUntil: 'networkidle' });
   (await see(/About .*% (more|fewer) deaths|No clear effect/)) ? ok('Scenario Lab shows an estimate') : fail('scenario');
 
+  await p.goto(base + '/discovery', { waitUntil: 'networkidle' });
+  await p.getByRole('radio').filter({ hasText: /electricity demand x weather \(8 large/i }).first().click();
+  (await see(/Does it repeat in other states/i)) ? ok('India grid: the cross-state check is shown') : fail('india cross-check');
+  (await see(/pairs? kept in both panels/i)) ? ok('India grid: pairs kept in both panels are counted') : fail('india counts');
+  (await see(/What a standard screen would have reported/i)) ? ok('the standard-screen audit is shown') : fail('audit');
+
   errs.length ? fail('errors: ' + [...new Set(errs)].slice(0, 3).join(' | ')) : ok('no console errors and no failed requests');
   await browser.close();
   console.log(bad ? 'STATIC E2E FAILED (' + bad + ')' : 'STATIC E2E PASSED');

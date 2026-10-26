@@ -84,7 +84,7 @@ def recompute_digest(dataset_id: str, params: dict) -> str:
     """Re-run the analysis from the registered inputs and return the digest of its outputs (no ledger writes)."""
     spec = get_spec(dataset_id)
     if spec.kind == "panel":
-        res = run_full_stack(load_panel(spec), "outcome", STRESSORS, alpha=params["alpha"], effect_gate=params["effect_gate"],
+        res = run_full_stack(load_panel(spec), "outcome", spec.stressor_cols, alpha=params["alpha"], effect_gate=params["effect_gate"],
                              n_boot=params["n_boot"], n_ci=params["n_ci"], seed=params["seed"], topk=params["topk"])
         return panel_digest(res)
     expr, meta = TA.load_study(spec.abs_path.name.split("_")[1])
@@ -117,7 +117,7 @@ def factorial_digest(res_d: pd.DataFrame) -> str:
 # --------------------------------------------------------------------------------------------------
 # Panel (Track B) pieces
 # --------------------------------------------------------------------------------------------------
-def _holdout_replication(df: pd.DataFrame, accepted: list[dict], params: dict) -> dict[tuple[str, str], dict]:
+def _holdout_replication(df: pd.DataFrame, accepted: list[dict], params: dict, stressors: list[str] | None = None) -> dict[tuple[str, str], dict]:
     """Internal replication by city hold-out: fit each accepted pair in two disjoint halves of the cities."""
     cities = sorted(df["city"].unique())
     halves = {"A": cities[0::2], "B": cities[1::2]}
@@ -125,7 +125,7 @@ def _holdout_replication(df: pd.DataFrame, accepted: list[dict], params: dict) -
     out: dict[tuple[str, str], dict] = {p: {"halves": {}} for p in pairs}
     for h, cs in halves.items():
         sub = df[df["city"].isin(cs)].reset_index(drop=True)
-        disc = PanelDiscovery(sub, "outcome", STRESSORS, alpha=params["alpha"], n_boot=params["n_boot"], seed=params["seed"])
+        disc = PanelDiscovery(sub, "outcome", stressors or STRESSORS, alpha=params["alpha"], n_boot=params["n_boot"], seed=params["seed"])
         for p in pairs:
             others = [q for q in pairs if q != p]
             r = disc.holdout_check(p[0], p[1], others)
@@ -239,7 +239,7 @@ def execute_run(dataset_id: str, params: dict | None = None, emit: Emit | None =
         # 2 ---- SECURITY_PRECHECK ----------------------------------------------------------------
         def s2():
             if is_panel:
-                scan_df = state["df"][["city", "date", *STRESSORS]]
+                scan_df = state["df"][["city", "date", *spec.stressor_cols]]
             else:
                 X = state["expr"].T.to_numpy(float)
                 u, s, _ = np.linalg.svd(X - X.mean(0), full_matrices=False)
@@ -262,7 +262,7 @@ def execute_run(dataset_id: str, params: dict | None = None, emit: Emit | None =
         if is_panel:
             step(2, "RUNNING", "Screening all stressor pairs and fitting LightGBM-SHAP / neural second opinions...")
             t0 = time.time()
-            res = run_full_stack(state["df"], "outcome", STRESSORS, alpha=params["alpha"], effect_gate=params["effect_gate"],
+            res = run_full_stack(state["df"], "outcome", spec.stressor_cols, alpha=params["alpha"], effect_gate=params["effect_gate"],
                                  n_boot=params["n_boot"], n_ci=params["n_ci"], seed=params["seed"], topk=params["topk"],
                                  on_stage=on_stage)
             state["res"] = res
@@ -302,7 +302,7 @@ def execute_run(dataset_id: str, params: dict | None = None, emit: Emit | None =
         def s5():
             if is_panel:
                 acc = [p for p in state["res"]["pairs"] if p["s3_conditional"]]
-                hold = _holdout_replication(state["df"], acc, params) if acc else {}
+                hold = _holdout_replication(state["df"], acc, params, spec.stressor_cols) if acc else {}
                 state["hold"] = hold
                 n_rep = sum(v["replicated"] for v in hold.values())
                 return (f"city hold-out (two disjoint city halves): {n_rep}/{len(acc)} selected pairs replicate - INTERNAL_REPLICATION only",

@@ -1,0 +1,50 @@
+{
+  "title": "India daily electricity supplied x state weather, 8 states, 2019-01-01 to 2024-04-28",
+  "provenance": "REAL",
+  "rows": 14968,
+  "states": [
+    "Andhra Pradesh",
+    "Bihar",
+    "Haryana",
+    "Kerala",
+    "Madhya Pradesh",
+    "Odisha",
+    "Telangana",
+    "West Bengal"
+  ],
+  "date_start": "2019-01-01",
+  "date_end": "2024-04-25",
+  "days_per_state": {
+    "Andhra Pradesh": 1871,
+    "Bihar": 1871,
+    "Haryana": 1871,
+    "Kerala": 1871,
+    "Madhya Pradesh": 1871,
+    "Odisha": 1871,
+    "Telangana": 1871,
+    "West Bengal": 1871
+  },
+  "states_dropped_for_too_few_days": {},
+  "source_repeated_dates_dropped": 55,
+  "sources": {
+    "demand": "Grid-India (POSOCO) daily energy met per state, as packaged and quality-checked by Hunt and Bloomfield, Zenodo 10.5281/zenodo.14983362, CC BY 4.0",
+    "weather": "state-level daily statistics of ERA5 (temperature, dew point, wind, solar radiation, cloud cover), same Zenodo record"
+  },
+  "stressors": {
+    "tmax": "daily maximum 2 m temperature, deg C",
+    "rh": "relative humidity from mean temperature and dew point, %",
+    "wind": "mean 10 m wind speed, m/s",
+    "solar": "surface solar radiation, kWh/m2/day",
+    "cloud": "mean total cloud cover, 0 to 1"
+  },
+  "outcome": "% above the state's own expected electricity supplied (log demand ~ linear trend + 3 annual harmonics + day of week); outcome_nat additionally subtracts the demand-weighted average of this panel's states on the same day (a sensitivity version)",
+  "construction_choice": "The analysed outcome (without the same-day subtraction) was chosen after both versions had been run on both panels, because no nationwide wave comparable to flu exists for electricity; the two versions select different pairs, so the pairs found are not robust to this choice.",
+  "limitations": [
+    "The outcome is electricity supplied to the grid, not health: it measures stress on the power system.",
+    "Weather is a state-level ERA5 average, not each city's own conditions.",
+    "Solar radiation and cloud cover move together and both track humidity; pairs involving them may reflect weather regimes (for example humid, cloudy monsoon days), not one clean mechanism.",
+    "Farm pumping and other non-cooling loads also respond to weather and are not separated out.",
+    "The same record supplies demand and weather for both panels: replication across states is not replication across data sources.",
+    "About 6% of calendar days are absent from the source and are left absent."
+  ]
+}

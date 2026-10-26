@@ -23,6 +23,10 @@ STRESSORS = {
     "uv": {"label": "UV index", "unit": "index", "group": "weather", "about": "Ultraviolet radiation intensity."},
     "wind": {"label": "Wind", "unit": "km/h", "group": "weather", "about": "Daily maximum wind speed."},
     "precip": {"label": "Precipitation", "unit": "mm", "group": "weather", "about": "Daily rainfall."},
+    # India electricity panels (Track D)
+    "tmax": {"label": "Maximum temperature", "unit": "deg C", "group": "heat", "about": "Hottest 2 m air temperature of the day (state-level ERA5)."},
+    "solar": {"label": "Solar radiation", "unit": "kWh/m2/day", "group": "weather", "about": "Sunlight reaching the surface, a state-level ERA5 daily mean."},
+    "cloud": {"label": "Cloud cover", "unit": "fraction", "group": "weather", "about": "Share of sky covered by cloud, 0 to 1 (state-level ERA5 daily mean)."},
 }
 
 

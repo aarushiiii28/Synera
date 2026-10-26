@@ -7,6 +7,8 @@ Ids are stable API identifiers:
     osd-211            REAL      NASA OSDR spleen RNA-seq, radiation x hindlimb unloading (Track A, discovery)
     osd-237            REAL      NASA OSDR skin RNA-seq, same design (Track A, replication tissue)
     us_mortality       REAL      CDC weekly deaths x EPA air x ERA5 weather, 50 US states 2014-2019 (Track C, real health outcome)
+    india_grid         REAL      Grid-India daily electricity supplied x ERA5 weather, 8 Indian states 2019-2024 (Track D, real non-health outcome)
+    india_grid_b       REAL      the same for 8 other Indian states (a check across states)
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from synera_core.provenance.hashing import sha256_file
 from synera_core.provenance.ledger import Ledger
 from synera_core.provenance.manifest import register_file
 
+INDIA_GRID_STRESSORS = ("tmax", "rh", "wind", "solar", "cloud")
 BENCHMARK_SNR = 2.0
 BENCHMARK_SEED = 20260929
 
@@ -38,6 +41,11 @@ class DatasetSpec:
     description: str = ""
     role: str = ""
     units: str = "raw"       # raw (physical units) | standardised (per-city z-scores): physical-range checks need raw units
+    stressors: tuple[str, ...] = ()    # columns the engine tests; empty means the ten standard environmental stressors
+
+    @property
+    def stressor_cols(self) -> list[str]:
+        return list(self.stressors) if self.stressors else list(STRESSORS)
 
     @property
     def abs_path(self) -> Path:
@@ -83,6 +91,15 @@ def get_registry() -> dict[str, DatasetSpec]:
                         "data/processed/us_stroke_panel.parquet",
                         description="REAL health outcome: CDC weekly deaths from cerebrovascular disease (stroke), 38 US states with enough data, 2014-2019, "
                                     "same inputs as us_mortality."),
+            DatasetSpec("india_grid", "India daily electricity demand x weather (8 large states)", "D", "panel", "REAL",
+                        "data/processed/india_grid_panel.parquet", stressors=INDIA_GRID_STRESSORS,
+                        description="REAL outcome from a non-health system: daily electricity supplied to 8 large Indian states (Grid-India, 2019 to Apr 2024), "
+                                    "joined to state-level ERA5 weather (Hunt and Bloomfield, Zenodo 14983362, CC BY 4.0). The outcome is the % above each "
+                                    "state's own trend, season and weekday. Measures grid stress, not health."),
+            DatasetSpec("india_grid_b", "India daily electricity demand x weather (8 other states)", "D", "panel", "REAL",
+                        "data/processed/india_grid_b_panel.parquet", stressors=INDIA_GRID_STRESSORS,
+                        description="The same construction on 8 different Indian states, built to check whether what India (8 states) shows repeats elsewhere. "
+                                    "Same source, same period, different states: a replication across states, not across data sources."),
             DatasetSpec("osd-211", "NASA OSDR OSD-211: spleen RNA-seq", "A", "factorial", "REAL",
                         "data/processed/osdr_OSD-211_expr.parquet", "data/processed/osdr_OSD-211_meta.parquet",
                         description="Mouse spleen, chronic low-dose radiation x hindlimb unloading (2x2).", role="discovery"),
@@ -113,7 +130,7 @@ def load_panel(spec: DatasetSpec) -> pd.DataFrame:
     """Panel dataframe sorted by (city, date) with complete stressor rows (never imputed)."""
     df = pd.read_parquet(spec.abs_path)
     df["date"] = pd.to_datetime(df["date"])
-    df = df.dropna(subset=[*STRESSORS, "outcome"]).sort_values(["city", "date"]).reset_index(drop=True)
+    df = df.dropna(subset=[*spec.stressor_cols, "outcome"]).sort_values(["city", "date"]).reset_index(drop=True)
     return df
 
 
@@ -127,7 +144,7 @@ def summarize(spec: DatasetSpec) -> dict:
         d = pd.read_parquet(p)
         out.update({"rows": int(len(d)), "cities": int(d["city"].nunique()),
                     "date_start": str(pd.to_datetime(d["date"]).min().date()), "date_end": str(pd.to_datetime(d["date"]).max().date()),
-                    "features": len(STRESSORS)})
+                    "features": len(spec.stressor_cols)})
     else:
         e = pd.read_parquet(p)
         out.update({"features": int(e.shape[0]), "samples": int(e.shape[1])})
