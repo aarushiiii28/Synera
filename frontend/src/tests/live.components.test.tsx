@@ -3,12 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { LiveChart } from '../components/live/LiveChart';
 import { SensorCard } from '../components/live/SensorCard';
-import { ProvBadge } from '../components/live/Badges';
 import type { LiveReading } from '../lib/live';
 
 const reading = (seq: number, t: number | null): LiveReading => ({
   seq, device_id: 'd', time_ms: seq * 2000, received_utc: new Date(Date.UTC(2026, 9, 30, 12, 0, seq)).toISOString(), source: 'REAL_SENSOR',
-  measurements: [{ sensor: 'temperature', value: t, unit: '°C', quality: t === null ? 'MISSING' : 'OK' }, { sensor: 'humidity', value: 57, unit: '%', quality: 'OK' }, { sensor: 'gas', value: 61, unit: 'ADC', quality: 'WARMING_UP' }],
+  measurements: [{ sensor: 'temperature', value: t, unit: '°C', quality: t === null ? 'MISSING' : 'OK' }, { sensor: 'humidity', value: 57, unit: '%', quality: 'OK' }, { sensor: 'gas', value: 61, unit: 'raw', quality: 'WARMING_UP' }],
 });
 
 describe('Live Stress Lab components', () => {
@@ -29,31 +28,21 @@ describe('Live Stress Lab components', () => {
     expect(container.querySelector('svg')?.getAttribute('aria-label')).toContain('latest 27.0 °C');
   });
   it('a sensor card with no readings shows dashes, never a number', () => {
-    render(<SensorCard k="temperature" readings={[]} test={false} />);
+    render(<SensorCard k="temperature" readings={[]} />);
     expect(screen.getByText('no reading yet')).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
-  it('updates when a new reading arrives and flags the gas sensor as raw and warming up', () => {
-    const { rerender } = render(<SensorCard k="gas" readings={[reading(1, 25)]} test={false} />);
+  it('updates when a new reading arrives and shows the quality of the newest value', () => {
+    const { rerender } = render(<SensorCard k="gas" readings={[reading(1, 25)]} />);
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);                 // current, min and max are all 61
-    expect(screen.getByText(/Not ppm, not AQI, not PM2.5/)).toBeTruthy();
     expect(screen.getByText('WARMING UP')).toBeTruthy();
-    rerender(<SensorCard k="temperature" readings={[reading(1, 25), reading(2, 26)]} test={false} />);
+    rerender(<SensorCard k="temperature" readings={[reading(1, 25), reading(2, 26)]} />);
     expect(screen.getAllByText('26.0').length).toBeGreaterThan(0);               // the new current value
     expect(screen.getAllByText('25.0').length).toBeGreaterThan(0);               // the previous reading, now also the minimum
   });
   it('a missing temperature is shown as missing quality, not as zero', () => {
-    render(<SensorCard k="temperature" readings={[reading(1, null)]} test={false} />);
+    render(<SensorCard k="temperature" readings={[reading(1, null)]} />);
     expect(screen.getByText('MISSING')).toBeTruthy();
     expect(screen.queryByText('0.0')).toBeNull();
-  });
-  it('simulated test readings are labelled SIMULATED on the card', () => {
-    render(<SensorCard k="humidity" readings={[{ ...reading(1, 25), source: 'SIMULATED_TEST' }]} test />);
-    expect(screen.getByText('SIMULATED')).toBeTruthy();
-    expect(screen.queryByText('REAL SENSOR')).toBeNull();
-  });
-  it('every provenance class has its own label', () => {
-    render(<><ProvBadge prov="REAL SENSOR" /><ProvBadge prov="SIMULATED" /><ProvBadge prov="HISTORICAL" /><ProvBadge prov="DERIVED" /></>);
-    for (const l of ['REAL SENSOR', 'SIMULATED', 'HISTORICAL', 'DERIVED']) expect(screen.getByText(l)).toBeTruthy();
   });
 });

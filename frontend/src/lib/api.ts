@@ -243,15 +243,11 @@ export const api = {
 
   // Live Stress Lab: a physical Arduino read over a serial port by the API process on this computer
   livePorts: () => get<LivePorts>('/live/ports'),
-  liveSpec: () => get<LiveSpec>('/live/spec'),
   liveStatus: () => get<LiveStatus>('/live/status'),
   liveReadings: (after = 0, limit = 1500) => get<{ status: LiveStatus; items: LiveReading[]; latest_seq: number }>('/live/readings' + qs({ after, limit })),
   liveConnect: (port: string, baud: number) => post<LiveStatus>('/live/connect', { port, baud }),
   liveDisconnect: () => post<LiveStatus>('/live/disconnect'),
-  liveTestStart: () => post<LiveStatus>('/live/test-mode/start'),
-  liveTestStop: () => post<LiveStatus>('/live/test-mode/stop'),
   liveSeal: () => post<NonNullable<LiveStatus['last_session']>>('/live/seal'),
-  liveHistory: (o: { city?: string; temperature?: number | null; humidity?: number | null }) => get<LiveHistory>('/live/history' + qs(o)),
 
   riskRegions: () => get<{ id: string; lat: number; lon: number }[]>('/risk/regions'),
   risk: (region: string) => get<Risk>('/risk/assessment' + qs({ region })),

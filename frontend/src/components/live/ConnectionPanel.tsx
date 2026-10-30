@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../lib/api';
 import type { LiveStatus } from '../../lib/live';
 
-const TONE: Record<LiveStatus['state'], string> = { CONNECTED: 'var(--biosphere)', CONNECTING: 'var(--signal)', RECONNECTING: 'var(--solar)', ERROR: 'var(--alert)', DISCONNECTED: 'var(--faint)', TEST_MODE: 'var(--solar)' };
-const LABEL: Record<LiveStatus['state'], string> = { CONNECTED: 'CONNECTED', CONNECTING: 'CONNECTING', RECONNECTING: 'RECONNECTING', ERROR: 'ERROR', DISCONNECTED: 'DISCONNECTED', TEST_MODE: 'SIMULATED TEST' };
+const TONE: Record<LiveStatus['state'], string> = { CONNECTED: 'var(--biosphere)', CONNECTING: 'var(--signal)', RECONNECTING: 'var(--solar)', ERROR: 'var(--alert)', DISCONNECTED: 'var(--faint)', TEST_MODE: 'var(--faint)' };
+const LABEL: Record<LiveStatus['state'], string> = { CONNECTED: 'CONNECTED', CONNECTING: 'CONNECTING', RECONNECTING: 'RECONNECTING', ERROR: 'ERROR', DISCONNECTED: 'DISCONNECTED', TEST_MODE: 'DISCONNECTED' };
 
 export const StateDot = ({ state, receiving }: { state: LiveStatus['state']; receiving?: boolean }) => (
   <span className="inline-flex items-center gap-2 num text-[11px] tracking-[0.16em]" style={{ color: TONE[state] }}>
@@ -25,7 +25,6 @@ export function ConnectionPanel({ status, apiError }: { status: LiveStatus | nul
   const done = (s: LiveStatus) => { qc.setQueryData(['live-status'], s); setMsg(s.state === 'ERROR' ? s.last_error : null); };
   const connect = useMutation({ mutationFn: () => api.liveConnect(chosen, baud), onSuccess: done, onError: (e) => setMsg(errText(e)) });
   const disconnect = useMutation({ mutationFn: api.liveDisconnect, onSuccess: done, onError: (e) => setMsg(errText(e)) });
-  const test = useMutation({ mutationFn: api.liveTestStart, onSuccess: done, onError: (e) => setMsg(errText(e)) });
   const seal = useMutation({ mutationFn: api.liveSeal, onSuccess: () => { setMsg(null); qc.invalidateQueries({ queryKey: ['live-status'] }); }, onError: (e) => setMsg(errText(e)) });
   const st = status;
   const live = !!st && ['CONNECTED', 'CONNECTING', 'RECONNECTING', 'ERROR'].includes(st.state);
@@ -37,7 +36,7 @@ export function ConnectionPanel({ status, apiError }: { status: LiveStatus | nul
         {apiError && <div role="alert" className="hatch-alert border border-alert/60 px-4 py-3 mb-4 text-sm"><div className="num text-alert text-xs tracking-[0.16em]">API UNREACHABLE</div>{apiError} Start the API (dev.cmd) to talk to the device.</div>}
         <div className="grid sm:grid-cols-[1fr_8rem] gap-3">
           <label className="grid gap-1"><span className="label">Serial port</span>
-            <select className={field} value={chosen} onChange={(e) => setPort(e.target.value)} disabled={live || test.isPending} aria-label="Serial port">
+            <select className={field} value={chosen} onChange={(e) => setPort(e.target.value)} disabled={live} aria-label="Serial port">
               {list.length === 0 && <option value="">No serial ports found</option>}
               {list.map((p) => <option key={p.device} value={p.device}>{p.device} · {p.description || 'serial device'}</option>)}
             </select></label>
@@ -46,9 +45,9 @@ export function ConnectionPanel({ status, apiError }: { status: LiveStatus | nul
               {(ports.data?.bauds ?? [9600]).map((b) => <option key={b} value={b}>{b}</option>)}</select></label>
         </div>
         <div className="flex flex-wrap gap-2 mt-3">
-          <button type="button" onClick={() => ports.refetch()} disabled={ports.isFetching || !!apiError} className="num text-xs tracking-[0.12em] border border-line px-3 py-2 hover:border-signal disabled:opacity-40">{ports.isFetching ? 'SCANNING' : 'REFRESH PORTS'}</button>
+          <button type="button" onClick={() => ports.refetch()} disabled={ports.isFetching || !!apiError || live} className="num text-xs tracking-[0.12em] border border-line px-3 py-2 hover:border-signal disabled:opacity-40">{ports.isFetching ? 'SCANNING' : 'REFRESH PORTS'}</button>
           {!hw && st?.state !== 'ERROR'
-            ? <button type="button" onClick={() => { setMsg(null); connect.mutate(); }} disabled={!chosen || connect.isPending || !!apiError || st?.state === 'TEST_MODE'} className="num text-xs tracking-[0.16em] border border-signal bg-signal/10 text-signal px-4 py-2 hover:bg-signal/20 disabled:opacity-40">{connect.isPending ? 'OPENING PORT…' : 'CONNECT'}</button>
+            ? <button type="button" onClick={() => { setMsg(null); connect.mutate(); }} disabled={!chosen || connect.isPending || !!apiError} className="num text-xs tracking-[0.16em] border border-signal bg-signal/10 text-signal px-4 py-2 hover:bg-signal/20 disabled:opacity-40">{connect.isPending ? 'OPENING PORT…' : 'CONNECT'}</button>
             : <button type="button" onClick={() => disconnect.mutate()} disabled={disconnect.isPending} className="num text-xs tracking-[0.16em] border border-alert/70 text-alert px-4 py-2 hover:bg-alert/10">DISCONNECT</button>}
         </div>
         {ports.data && !ports.data.available && <p className="text-[13px] text-solar mt-3 mb-0">{ports.data.note}</p>}
@@ -64,7 +63,7 @@ export function ConnectionPanel({ status, apiError }: { status: LiveStatus | nul
           <div><dt className="label">Valid packets</dt><dd className="m-0 num text-text">{st?.packets_ok ?? 0}</dd></div>
           <div><dt className="label">Rejected lines</dt><dd className="m-0 num" style={{ color: st && st.packets_rejected ? 'var(--solar)' : 'var(--muted)' }}>{st?.packets_rejected ?? 0}</dd></div>
           <div><dt className="label">Last packet</dt><dd className="m-0 num text-muted">{st?.last_packet_utc ? new Date(st.last_packet_utc).toLocaleTimeString() : '—'}</dd></div>
-          <div><dt className="label">Data source</dt><dd className="m-0 num" style={{ color: st?.source === 'SIMULATED_TEST' ? 'var(--solar)' : 'var(--muted)' }}>{st?.source?.replace('_', ' ') ?? '—'}</dd></div>
+          <div><dt className="label">Data source</dt><dd className="m-0 num text-muted">{st?.source ? 'Arduino sensors' : '—'}</dd></div>
         </dl>
         <p className="text-[13px] text-muted mt-3 mb-0 break-words" aria-live="polite">{st?.message ?? 'Not connected.'}</p>
         {st?.last_error && st.state !== 'ERROR' && <p className="text-[12px] text-solar mt-1 mb-0 break-words">{st.last_error}</p>}
@@ -76,12 +75,6 @@ export function ConnectionPanel({ status, apiError }: { status: LiveStatus | nul
               {st.last_session?.sealed ? <span className="text-biosphere">Sealed in the ledger (block {st.last_session.ledger_block}).</span> : <button type="button" onClick={() => seal.mutate()} disabled={seal.isPending} className="text-signal underline bg-transparent border-0 p-0 cursor-pointer">Seal this session in the ledger</button>}
             </div>
           )}
-          <div className="flex items-start gap-3">
-            {st?.state === 'TEST_MODE'
-              ? <button type="button" onClick={() => disconnect.mutate()} className="num text-[11px] tracking-[0.12em] border border-solar px-3 py-1.5 text-solar">STOP SIMULATED TEST FEED</button>
-              : <button type="button" onClick={() => test.mutate()} disabled={hw || !!apiError || test.isPending} title={hw ? 'Disconnect the hardware first' : 'Starts clearly labelled simulated readings'} className="num text-[11px] tracking-[0.12em] border border-line px-3 py-1.5 text-muted hover:border-solar disabled:opacity-40">START SIMULATED TEST FEED</button>}
-            <p className="text-[11.5px] text-faint m-0 leading-snug">Test mode feeds clearly labelled SIMULATED readings to check the interface. It never runs while hardware is connected and is never recorded as evidence.</p>
-          </div>
         </div>
       </div>
     </div>

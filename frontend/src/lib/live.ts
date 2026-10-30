@@ -3,7 +3,6 @@
 export type Source = 'REAL_SENSOR' | 'SIMULATED_TEST';
 export type Quality = 'OK' | 'MISSING' | 'OUT_OF_SENSOR_RANGE' | 'WARMING_UP';
 export type SensorKey = 'temperature' | 'humidity' | 'gas';
-export type ProvClass = 'REAL SENSOR' | 'SIMULATED' | 'HISTORICAL' | 'DERIVED';
 
 export interface LiveMeasurement { sensor: SensorKey; value: number | null; unit: string; quality: Quality }
 export interface LiveReading { seq: number; device_id: string; time_ms: number; received_utc: string; source: Source; measurements: LiveMeasurement[] }
@@ -19,7 +18,7 @@ export interface LiveStatus {
 export const SENSORS: { key: SensorKey; label: string; unit: string; color: string; digits: number; sensor: string }[] = [
   { key: 'temperature', label: 'Temperature', unit: '°C', color: 'var(--solar)', digits: 1, sensor: 'DHT11' },
   { key: 'humidity', label: 'Relative humidity', unit: '%', color: 'var(--signal)', digits: 0, sensor: 'DHT11' },
-  { key: 'gas', label: 'Gas sensor, raw', unit: 'ADC', color: 'var(--biosphere)', digits: 0, sensor: 'MQ-series analog output' },
+  { key: 'gas', label: 'Smoke / gas level', unit: 'raw', color: 'var(--biosphere)', digits: 0, sensor: 'MQ gas sensor' },
 ];
 
 export const valueOf = (r: LiveReading, k: SensorKey): number | null => r.measurements.find((m) => m.sensor === k)?.value ?? null;
@@ -67,72 +66,30 @@ export function heatIndexC(tC: number, rh: number): number {
   return ((t >= 80 && rh >= 40 ? roth : simple) - 32) * 5 / 9;
 }
 
-/** Dew point in °C (Magnus formula), the temperature at which this air would be saturated. */
-export function dewPointC(tC: number, rh: number): number {
-  const a = 17.625, b = 243.04;
-  const g = Math.log(Math.max(rh, 0.01) / 100) + (a * tC) / (b + tC);
-  return (b * g) / (a - g);
+/** The National Weather Service heat-index categories, in °C. */
+export function heatCategory(hi: number): { label: string; tone: string; advice: string } {
+  if (hi < 27) return { label: 'Comfortable', tone: 'var(--biosphere)', advice: 'No heat stress expected for most people.' };
+  if (hi < 32) return { label: 'Caution', tone: 'var(--teal, #4fd1c5)', advice: 'Fatigue is possible with prolonged exposure and activity.' };
+  if (hi < 41) return { label: 'Extreme caution', tone: 'var(--solar)', advice: 'Heat cramps and heat exhaustion are possible with prolonged exposure.' };
+  if (hi < 54) return { label: 'Danger', tone: 'var(--alert)', advice: 'Heat exhaustion is likely; heat stroke is possible.' };
+  return { label: 'Extreme danger', tone: 'var(--alert)', advice: 'Heat stroke is highly likely.' };
 }
 
-// ---------------------------------------------------------------------------------------------------- scenarios
-export type VarKey = 'temperature' | 'humidity' | 'gas' | 'pm25' | 'pm10' | 'co2';
-export interface VarSpec { key: VarKey; label: string; unit: string; prov: ProvClass; min: number; max: number; step: number; source: string; note: string }
+export interface Smoke { ready: boolean; learned: number; needed: number; baseline: number | null; current: number | null; abovePct: number | null; state: 'learning' | 'clean' | 'elevated' | 'detected' }
+const NEEDED = 30;          // readings (about a minute) before a baseline is trusted
 
-export const VARS: VarSpec[] = [
-  { key: 'temperature', label: 'Temperature', unit: '°C', prov: 'REAL SENSOR', min: 0, max: 50, step: 0.5, source: 'DHT11 on the Arduino (D2)', note: 'Whole degrees, about ±2 °C.' },
-  { key: 'humidity', label: 'Relative humidity', unit: '%', prov: 'REAL SENSOR', min: 20, max: 90, step: 1, source: 'DHT11 on the Arduino (D2)', note: 'Whole percent, about ±5 % RH.' },
-  { key: 'gas', label: 'Gas sensor, raw', unit: 'ADC', prov: 'REAL SENSOR', min: 0, max: 1023, step: 1, source: 'MQ-series analog output on A0', note: 'A raw voltage reading. Not ppm, not AQI, not PM2.5. Uncalibrated.' },
-  { key: 'pm25', label: 'PM2.5', unit: 'µg/m³', prov: 'SIMULATED', min: 0, max: 300, step: 1, source: 'set by you; no PM sensor is attached', note: 'A scenario input, not a measurement.' },
-  { key: 'pm10', label: 'PM10', unit: 'µg/m³', prov: 'SIMULATED', min: 0, max: 500, step: 1, source: 'set by you; no PM sensor is attached', note: 'A scenario input, not a measurement.' },
-  { key: 'co2', label: 'CO₂', unit: 'ppm', prov: 'SIMULATED', min: 350, max: 5000, step: 10, source: 'set by you; no CO₂ sensor is attached', note: 'A scenario input, not a measurement.' },
-];
-export const VAR = Object.fromEntries(VARS.map((v) => [v.key, v])) as Record<VarKey, VarSpec>;
-
-export type Conditions = Record<VarKey, number>;
-export interface Scenario { id: string; name: string; values: Conditions; hours: number; fromLive?: boolean }
-
-export const DEFAULTS: Conditions = { temperature: 25, humidity: 50, gas: 100, pm25: 20, pm10: 40, co2: 450 };
-
-export interface Derived { heatIndex: number; dewPoint: number }
-export const derive = (c: Pick<Conditions, 'temperature' | 'humidity'>): Derived => ({ heatIndex: heatIndexC(c.temperature, c.humidity), dewPoint: dewPointC(c.temperature, c.humidity) });
-
-/** The classic 2 x 2 comparison of the user's example: baseline, both raised (A), temperature only (B), humidity only (C). */
-export function factorialScenarios(base: Conditions, tHigh: number, rhHigh: number): Scenario[] {
-  const mk = (id: string, name: string, t: number, h: number): Scenario => ({ id, name, hours: 24, values: { ...base, temperature: t, humidity: h } });
-  return [mk('base', 'Baseline', base.temperature, base.humidity), mk('A', 'A: hot + humid', tHigh, rhHigh), mk('B', 'B: hotter only', tHigh, base.humidity), mk('C', 'C: humid only', base.temperature, rhHigh)];
+/** The gas level against the sensor's own clean-air baseline in this room (the median of its lowest fifth of readings), not against any outside standard. */
+export function smokeLevel(values: (number | null)[]): Smoke {
+  const v = values.filter((x): x is number => x !== null && Number.isFinite(x));
+  const current = v.length ? v[v.length - 1] : null;
+  if (v.length < NEEDED) return { ready: false, learned: v.length, needed: NEEDED, baseline: null, current, abovePct: null, state: 'learning' };
+  const low = [...v].sort((a, b) => a - b).slice(0, Math.max(5, Math.floor(v.length / 5)));
+  const baseline = Math.max(20, low[Math.floor(low.length / 2)]);               // a floor keeps a near-zero baseline from inflating every percentage
+  const recent = v.slice(-3);
+  const above = (recent.reduce((s, x) => s + x, 0) / recent.length / baseline - 1) * 100;
+  const state: Smoke['state'] = above >= 50 ? 'detected' : above >= 15 ? 'elevated' : 'clean';
+  return { ready: true, learned: v.length, needed: NEEDED, baseline, current, abovePct: above, state };
 }
-
-export type InteractionClass = 'APPROXIMATELY ADDITIVE' | 'SUPER-ADDITIVE (synergistic-like)' | 'SUB-ADDITIVE (antagonistic-like)';
-export interface Contrast { baseline: number; a: number; b: number; c: number; effectT: number; effectRh: number; additive: number; interaction: number; klass: InteractionClass; curvatureT: number }
-
-/** The deviation of the combined response from the sum of the separate responses, for the heat index (a DERIVED physical quantity), with the sign read as a class. */
-export function contrast(base: Conditions, tHigh: number, rhHigh: number, tolerance = 0.25): Contrast {
-  const hi = (t: number, h: number) => heatIndexC(t, h);
-  const b0 = hi(base.temperature, base.humidity), a = hi(tHigh, rhHigh), b = hi(tHigh, base.humidity), c = hi(base.temperature, rhHigh);
-  const effectT = b - b0, effectRh = c - b0, additive = b0 + effectT + effectRh, interaction = a - additive;
-  const d = tHigh - base.temperature || 1;
-  const curvatureT = hi(base.temperature + d, base.humidity) - 2 * b0 + hi(base.temperature - d, base.humidity);   // second difference along temperature: 0 for a straight line
-  const klass: InteractionClass = Math.abs(interaction) <= tolerance ? 'APPROXIMATELY ADDITIVE' : interaction > 0 ? 'SUPER-ADDITIVE (synergistic-like)' : 'SUB-ADDITIVE (antagonistic-like)';
-  return { baseline: b0, a, b, c, effectT, effectRh, additive, interaction, klass, curvatureT };
-}
-
-/** Heat-index surface over temperature x humidity and, for every cell, how far it sits from the additive expectation built from the baseline. */
-export function interactionGrid(base: Pick<Conditions, 'temperature' | 'humidity'>, tRange: [number, number], rhRange: [number, number], n = 25) {
-  const ts = Array.from({ length: n }, (_, i) => tRange[0] + ((tRange[1] - tRange[0]) * i) / (n - 1));
-  const hs = Array.from({ length: n }, (_, i) => rhRange[0] + ((rhRange[1] - rhRange[0]) * i) / (n - 1));
-  const b0 = heatIndexC(base.temperature, base.humidity);
-  const gap = hs.map((h) => ts.map((t) => heatIndexC(t, h) - (heatIndexC(t, base.humidity) + heatIndexC(base.temperature, h) - b0)));
-  const surface = hs.map((h) => ts.map((t) => heatIndexC(t, h)));
-  return { ts, hs, gap, surface, maxAbsGap: Math.max(...gap.flat().map(Math.abs)) };
-}
-
-// ---------------------------------------------------------------------------------------------------- provenance
-export const PROV: Record<ProvClass, { tone: string; tip: string }> = {
-  'REAL SENSOR': { tone: 'var(--biosphere)', tip: 'Measured by the physical device connected to this computer.' },
-  SIMULATED: { tone: 'var(--solar)', tip: 'Set by you or generated for testing. Not a measurement.' },
-  HISTORICAL: { tone: 'var(--signal)', tip: 'An observation already stored in a real SYNERA dataset.' },
-  DERIVED: { tone: 'var(--teal, #4fd1c5)', tip: 'Computed from other values by a stated formula.' },
-};
 
 export const qualityNote = (q: Quality): string =>
   q === 'OK' ? 'valid' : q === 'MISSING' ? 'the sensor gave no value (shown as missing, never filled in)' : q === 'WARMING_UP' ? 'the gas sensor is still warming up: treat as provisional'

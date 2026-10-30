@@ -55,9 +55,8 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   (await see(/What a standard screen would have reported/i)) ? ok('the standard-screen audit is shown') : fail('audit');
 
   await p.goto(base + '/live-stress-lab', { waitUntil: 'networkidle' });
-  (await see(/No device in the recorded demo/)) ? ok('Live Stress Lab: the recorded demo says it has no hardware') : fail('live static notice');
-  (await p.getByRole('button', { name: /run comparison/i }).count()) ? ok('Live Stress Lab: the scenario builder still works without a server') : fail('live static builder');
-  (await p.locator('main').innerText()).includes('REAL SENSOR DATA') ? fail('live static claims real sensor data') : ok('Live Stress Lab: no real-sensor claim without a device');
+  (await see(/Run SYNERA locally to use the device/)) ? ok('Live Stress Lab: the recorded demo says it has no hardware') : fail('live static notice');
+  (await see(/Waiting for readings/)) ? ok('Live Stress Lab: no prediction without real readings') : fail('live static insights');
 
   errs.length ? fail('errors: ' + [...new Set(errs)].slice(0, 3).join(' | ')) : ok('no console errors and no failed requests');
   await browser.close();
