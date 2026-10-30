@@ -16,6 +16,7 @@ const Benchmark = lazy(() => import('./pages/Benchmark'));
 const RiskBrief = lazy(() => import('./pages/RiskBrief'));
 const Guide = lazy(() => import('./pages/Guide'));
 const Scenario = lazy(() => import('./pages/Scenario'));
+const LiveStressLab = lazy(() => import('./pages/LiveStressLab'));
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
 
 export function App() {
@@ -33,6 +34,7 @@ export function App() {
             <Route path="benchmark" element={<Benchmark />} />
             <Route path="risk" element={<RiskBrief />} />
             <Route path="scenario" element={<Scenario />} />
+            <Route path="live-stress-lab" element={<LiveStressLab />} />
             <Route path="guide" element={<Guide />} />
             {import.meta.env.DEV && <Route path="_design" element={<DesignSystem />} />}
           </Route>

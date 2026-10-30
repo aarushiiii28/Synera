@@ -54,6 +54,11 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   (await see(/pairs? kept in both panels/i)) ? ok('India grid: pairs kept in both panels are counted') : fail('india counts');
   (await see(/What a standard screen would have reported/i)) ? ok('the standard-screen audit is shown') : fail('audit');
 
+  await p.goto(base + '/live-stress-lab', { waitUntil: 'networkidle' });
+  (await see(/No device in the recorded demo/)) ? ok('Live Stress Lab: the recorded demo says it has no hardware') : fail('live static notice');
+  (await p.getByRole('button', { name: /run comparison/i }).count()) ? ok('Live Stress Lab: the scenario builder still works without a server') : fail('live static builder');
+  (await p.locator('main').innerText()).includes('REAL SENSOR DATA') ? fail('live static claims real sensor data') : ok('Live Stress Lab: no real-sensor claim without a device');
+
   errs.length ? fail('errors: ' + [...new Set(errs)].slice(0, 3).join(' | ')) : ok('no console errors and no failed requests');
   await browser.close();
   console.log(bad ? 'STATIC E2E FAILED (' + bad + ')' : 'STATIC E2E PASSED');

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Logo, Wordmark } from './Logo';
-import { IconBenchmark, IconBiology, IconDiscovery, IconFindings, IconGuide, IconObservatory, IconRisk, IconScenario, IconTrust } from './NavIcons';
+import { IconBenchmark, IconBiology, IconDiscovery, IconFindings, IconGuide, IconLive, IconObservatory, IconRisk, IconScenario, IconTrust } from './NavIcons';
 
 export const NAV = [
   { to: '/', icon: <IconObservatory />, title: 'Observatory', sub: 'The big picture', step: '' },
   { to: '/scenario', icon: <IconScenario />, title: 'Scenario Lab', sub: 'What if they combine?', step: '' },
+  { to: '/live-stress-lab', icon: <IconLive />, title: 'Live Stress Lab', sub: 'Real sensors, real air', step: '' },
   { to: '/discovery', icon: <IconDiscovery />, title: 'Discovery Lab', sub: 'Find interactions', step: '01' },
   { to: '/findings', icon: <IconFindings />, title: 'Findings', sub: 'What survived', step: '02' },
   { to: '/trust', icon: <IconTrust />, title: 'Trust Center', sub: 'Break it on purpose', step: '03' },

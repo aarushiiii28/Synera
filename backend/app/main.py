@@ -37,6 +37,7 @@ TAGS = [
     {"name": "Interactions", "description": "Stressor-pair matrix and network from the latest run."},
     {"name": "Space Biology", "description": "Track A: real NASA OSDR radiation x unloading data."},
     {"name": "Scenario", "description": "Track C: effect of combined weather and air-pollution conditions on weekly deaths, learned from real US data."},
+    {"name": "Live Stress Lab", "description": "A physical Arduino (DHT11 + MQ gas sensor) read over a serial port; readings carry REAL_SENSOR or SIMULATED_TEST provenance."},
     {"name": "Benchmark", "description": "Engine report card (simulated) and experiment history."},
     {"name": "Security", "description": "Tamper simulator on temporary copies and detector reliability."},
     {"name": "Risk", "description": "Compound-risk brief from validated findings."},

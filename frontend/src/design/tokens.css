@@ -73,6 +73,9 @@ body {
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise 0.7s var(--ease) both; }
+@keyframes tick-in { from { opacity: 0.35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.tick-in { animation: tick-in 0.35s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) { .tick-in { animation: none; } }
 .pulse-soft { animation: pulse-soft 2.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {

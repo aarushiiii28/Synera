@@ -30,6 +30,8 @@ flowchart LR
   P -. replay .-> E
 ```
 
+**Live Stress Lab.** A physical Arduino Uno (DHT11 temperature and humidity, MQ gas sensor) read over USB and streamed into the app at `/live-stress-lab`, with a bounded live history, scenario builder, an exploratory heat-index interaction view, a comparison with real historical data and a provenance record for every value. Readings carry `REAL_SENSOR` or `SIMULATED_TEST` provenance; a hardware session can be sealed in the ledger. Setup, wiring, API and honesty rules: [docs/LIVE_STRESS_LAB.md](docs/LIVE_STRESS_LAB.md).
+
 ## Quickstart
 
 ```bash
