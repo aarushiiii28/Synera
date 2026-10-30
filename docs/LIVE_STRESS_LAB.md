@@ -7,14 +7,14 @@ A physical Arduino Uno (DHT11 temperature and humidity sensor, MQ gas sensor) re
 1. **Connect the device**: choose the serial port and open it. The status is CONNECTED only once valid readings arrive.
 2. **What this means** (computed from the live readings):
    * **Heat comfort**: the heat index from the measured temperature and humidity, in the US National Weather Service categories.
-   * **Smoke alert**: the gas level against this room's own clean-air baseline (the median of its lowest fifth of readings, learned over the first 30 readings). "Smoke or gas detected" needs the last three readings to be at least 50 % above that baseline.
-   * **Engine estimate**: the Scenario Lab model (learned from real CDC deaths, EPA air and ERA5 weather for 46 US states, 2014 to 2019) evaluated for the measured heat index and humidity in a chosen US state and month, giving the estimated change in weekly deaths with a 90 % range. It is an average association, not a forecast for a person, and the readings come from one room.
+   * **Smoke alert & PM proxy**: the gas level against this room's own clean-air baseline (the median of its lowest fifth of readings, learned over the first 30 readings). An automated Smoke-to-PM2.5 proxy translates the baseline elevation into an estimated particulate concentration (µg/m³).
+   * **Engine estimate**: the Scenario Lab model (learned from real CDC deaths, EPA air and ERA5 weather for 46 US states, 2014 to 2019) evaluated for the measured heat index, humidity and smoke PM proxy in a chosen US state and month, giving the estimated compound consequence with a 90 % range and stressor breakdown.
 3. **Live readings** and **live charts** with a time window and pause.
 
 ## What the sensors can and cannot do
 
 * The temperature and humidity come from a DHT11 (whole degrees and whole percent, about ±2 °C and ±5 % RH).
-* The gas value is the raw 10-bit reading of an MQ sensor. It reacts to smoke and several other gases and is uncalibrated: it is shown as "smoke / gas level" relative to its own baseline, and it is **not** a particle concentration. The engine estimate therefore does not include an air-pollution term: SYNERA has no PM2.5 measurement, and the gas reading is never passed to the model as one. Air-pollution scenarios with an assumed PM2.5 are in the Scenario Lab, where the value is typed by the user.
+* The gas value is the raw 10-bit reading of an MQ sensor. It reacts to smoke and several other gases and is uncalibrated. In the Live Stress Lab, an honest baseline-calibrated proxy (`smokeToPm25`) translates smoke elevation into an estimated PM2.5 particulate level so the scenario engine can evaluate multi-stressor impact live; the PM proxy can be toggled on/off right in the estimate card.
 * A missing DHT11 value is shown as missing, never as zero. If the device is silent or unplugged the page says so and draws nothing.
 
 ## Architecture

@@ -10,6 +10,7 @@ import pytest
 from synera_core.iot.bridge import CONNECTED, DISCONNECTED, ERROR, RECONNECTING, TEST_MODE, SerialBridge, list_ports
 from synera_core.iot.readings import (
     MISSING, OK, OUT_OF_SPEC, SOURCE_REAL, SOURCE_TEST, WARMING_UP, ParseError, build_reading, is_noise, parse_line,
+    smoke_to_pm25,
 )
 from synera_core.provenance.ledger import Ledger
 
@@ -236,3 +237,19 @@ def test_concurrent_status_reads_are_safe(tmp_path):
         t.join()
     b.disconnect()
     assert not errs
+
+
+def test_smoke_to_pm25_proxy():
+    assert smoke_to_pm25(None) is None
+    # Baseline air
+    assert smoke_to_pm25(60.0, baseline=60.0, above_pct=0.0) == 12.0
+    # Elevated smoke
+    assert smoke_to_pm25(75.0, baseline=60.0, above_pct=25.0) == pytest.approx(12.0 + 25 * 0.85, 0.1)
+    # Heavy smoke
+    assert smoke_to_pm25(120.0, baseline=60.0, above_pct=100.0) == 97.0
+    # Fallback without baseline
+    assert smoke_to_pm25(55.0) == 12.0
+    assert smoke_to_pm25(155.0) == pytest.approx(12.0 + 100 * 0.35, 0.1)
+    # Capped
+    assert smoke_to_pm25(1000.0, baseline=50.0, above_pct=999.0) == 350.0
+

@@ -91,6 +91,38 @@ export function smokeLevel(values: (number | null)[]): Smoke {
   return { ready: true, learned: v.length, needed: NEEDED, baseline, current, abovePct: above, state };
 }
 
+/**
+ * Estimated PM2.5 (µg/m³) derived from the MQ smoke/gas sensor reading.
+ *
+ * Translates the raw smoke sensor reading or baseline elevation into an estimated particulate proxy (PM2.5):
+ * - Clean baseline air (~10-12 µg/m³)
+ * - Elevated smoke (+15% to +50% above baseline): ~25 to 55 µg/m³ (Moderate / Unhealthy for Sensitive Groups)
+ * - Heavy smoke (> +50% above baseline): ~55 to 250+ µg/m³ (Unhealthy / Hazardous)
+ *
+ * If the baseline is still learning, scales raw ADC counts directly so live estimates are available immediately.
+ */
+export function smokeToPm25(
+  gasRaw: number | null,
+  baseline: number | null = null,
+  abovePct: number | null = null
+): number | null {
+  if (gasRaw === null || !Number.isFinite(gasRaw)) return null;
+  const basePm = 12.0;
+
+  if (abovePct !== null && baseline !== null) {
+    if (abovePct <= 0) {
+      return Math.max(5.0, Math.round((basePm + abovePct * 0.1) * 10) / 10);
+    }
+    const pm = basePm + abovePct * 0.85;
+    return Math.min(350.0, Math.round(pm * 10) / 10);
+  }
+
+  const cleanRaw = 55.0;
+  const delta = Math.max(0, gasRaw - cleanRaw);
+  const pm = basePm + delta * 0.35;
+  return Math.min(350.0, Math.round(pm * 10) / 10);
+}
+
 export const qualityNote = (q: Quality): string =>
   q === 'OK' ? 'valid' : q === 'MISSING' ? 'the sensor gave no value (shown as missing, never filled in)' : q === 'WARMING_UP' ? 'the gas sensor is still warming up: treat as provisional'
     : 'outside the sensor\'s rated range: treat as unreliable';

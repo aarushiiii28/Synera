@@ -136,3 +136,27 @@ def build_reading(seq: int, device_id: str, time_ms: int, parsed: list[tuple[str
         ms.append(Measurement(sensor, value, SPEC[sensor]["unit"], quality))
     return Reading(seq=seq, device_id=device_id, time_ms=time_ms, received_utc=(now or datetime.now(UTC)).isoformat(timespec="milliseconds"),
                    source=source, measurements=tuple(ms))
+
+
+def smoke_to_pm25(gas_raw: float | None, baseline: float | None = None, above_pct: float | None = None) -> float | None:
+    """Estimated PM2.5 (ug/m3) derived from the MQ smoke/gas sensor reading.
+
+    Translates the raw smoke sensor reading or baseline elevation into an estimated particulate proxy (PM2.5):
+    - Clean baseline air (~10-12 ug/m3)
+    - Elevated smoke (+15% to +50% above baseline): ~25 to 55 ug/m3
+    - Heavy smoke (> +50% above baseline): ~55 to 250+ ug/m3
+    """
+    if gas_raw is None or math.isnan(gas_raw) or math.isinf(gas_raw):
+        return None
+    base_pm = 12.0
+    if above_pct is not None and baseline is not None:
+        if above_pct <= 0:
+            return max(5.0, round(base_pm + above_pct * 0.1, 1))
+        pm = base_pm + above_pct * 0.85
+        return min(350.0, round(pm, 1))
+
+    clean_raw = 55.0
+    delta = max(0.0, gas_raw - clean_raw)
+    pm = base_pm + delta * 0.35
+    return min(350.0, round(pm, 1))
+

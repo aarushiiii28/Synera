@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundedAppend, heatCategory, heatIndexC, seriesStats, smokeLevel, valueOf, windowOf, type LiveReading } from '../lib/live';
+import { boundedAppend, heatCategory, heatIndexC, seriesStats, smokeLevel, smokeToPm25, valueOf, windowOf, type LiveReading } from '../lib/live';
 
 const rd = (seq: number, t: number | null, h: number | null, g: number, secs = seq): LiveReading => ({
   seq, device_id: 'd', time_ms: seq * 2000, received_utc: new Date(Date.UTC(2026, 9, 30, 12, 0, secs)).toISOString(), source: 'REAL_SENSOR',
@@ -82,5 +82,35 @@ describe('smoke level against the room\'s own baseline', () => {
     const s = smokeLevel([...Array.from({ length: 40 }, () => 2), null, 10, 10, 10]);
     expect(s.baseline).toBe(20);
     expect(s.abovePct).toBeLessThan(0);
+  });
+});
+
+describe('smoke-to-PM2.5 proxy mapping', () => {
+  it('returns null for missing or non-finite readings', () => {
+    expect(smokeToPm25(null)).toBeNull();
+    expect(smokeToPm25(NaN)).toBeNull();
+  });
+
+  it('maps clean baseline air to typical reference PM2.5 (~12 µg/m³)', () => {
+    const pm = smokeToPm25(60, 60, 0);
+    expect(pm).toBe(12.0);
+  });
+
+  it('scales elevated smoke into particulate concentrations', () => {
+    const moderate = smokeToPm25(75, 60, 25);
+    expect(moderate).toBeCloseTo(12.0 + 25 * 0.85, 1);
+
+    const smokeDetected = smokeToPm25(120, 60, 100);
+    expect(smokeDetected).toBe(97.0);
+  });
+
+  it('falls back to raw ADC scaling when baseline is still learning', () => {
+    expect(smokeToPm25(55, null, null)).toBe(12.0);
+    const elevatedRaw = smokeToPm25(155, null, null);
+    expect(elevatedRaw).toBeCloseTo(12.0 + 100 * 0.35, 1);
+  });
+
+  it('caps extreme values to a safe upper bound', () => {
+    expect(smokeToPm25(999, 50, 1000)).toBe(350.0);
   });
 });
