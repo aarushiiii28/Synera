@@ -171,7 +171,9 @@ function Dossier({ f }: { f: FindingBundle }) {
                     ))}
                   </div>
                   <div className="num text-[12px] mt-4 text-muted">{f.replication.replicated ? 'REPLICATED' : 'NOT REPLICATED'} &middot; rate {fix(f.replication.replication_rate, 2)}</div>
-                  {f.evidence_level !== 'INDEPENDENT_REPLICATION' && <p className="text-[13px] text-solar mt-2 mb-0">Evidence level {f.evidence_level.replace(/_/g, ' ').toLowerCase()}: this is not an independent replication.</p>}
+                  {f.evidence_level === 'LATER_DATA_REPLICATION'
+                    ? <p className="text-[13px] text-muted mt-2 mb-0">Replicated on later data: the dates differ from the data that found it (the source is the same grid operator), and the engine kept this pair again under the same pre-set rules.</p>
+                    : f.evidence_level !== 'INDEPENDENT_REPLICATION' && <p className="text-[13px] text-solar mt-2 mb-0">Evidence level {f.evidence_level.replace(/_/g, ' ').toLowerCase()}: this is not an independent replication.</p>}
                 </>
               ) : <p className="text-sm text-muted m-0">No replication was attempted for this finding.</p>}
             </Panel>

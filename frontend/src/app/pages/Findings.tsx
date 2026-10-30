@@ -11,7 +11,7 @@ import { Term } from '../../components/Term';
 import { EmptyState, ErrorState, Skeleton } from '../../components/States';
 import { TypeGlyph } from '../../components/charts/DiscoveryCurves';
 import { FindingsConfidenceArc, FindingsMiniForest } from '../../components/charts/FindingsParts';
-import { activeFilterCount, filtersToParams, forestSpan, nextSort, PAGE_SIZE, pageCount, parseFilters, toApiQuery, type FindingFilters } from '../../components/charts/discoveryLogic';
+import { activeFilterCount, filtersToParams, forestSpan, nextSort, PAGE_SIZE, pageCount, parseFilters, toApiQuery, verifiedProgress, type FindingFilters } from '../../components/charts/discoveryLogic';
 
 const STATUSES: Status[] = ['CANDIDATE', 'VALIDATED', 'VERIFIED', 'BLOCKED', 'REJECTED'];
 const SEL = 'bg-void border border-line px-2 py-1.5 text-[13px] text-text min-w-0 focus-visible:outline-signal';
@@ -24,6 +24,8 @@ export default function Findings() {
   const q = useFindings(toApiQuery(f));
   const real = useFindings({ track: 'C', limit: 1 });
   const india = useFindings({ track: 'D', limit: 1 });
+  const everything = useFindings({ limit: 200 });
+  const progress = verifiedProgress(everything.data?.items ?? []);
   const st = useStressors();
   const nm = (k: string) => st.data?.[k]?.label ?? k;
   const items = q.data?.items ?? [];
@@ -52,7 +54,7 @@ export default function Findings() {
     ) : (
       <EmptyState title="No findings match these filters" tone="solar" action={<button type="button" onClick={() => setSp({}, { replace: true })} className="num text-xs border border-signal text-signal px-4 py-2 hover:bg-signal/10">CLEAR ALL FILTERS</button>}>
         {registryTotal} finding{registryTotal === 1 ? '' : 's'} exist in the registry, none with {[f.status && `status ${f.status}`, f.type && `type ${f.type}`, f.track && `track ${f.track}`, f.provenance && `${f.provenance} data`, f.q && `"${f.q}" in the name`].filter(Boolean).join(', ')}.
-        {f.status === 'VERIFIED' && <span className="block mt-2">No finding is VERIFIED because that needs REAL data and independent replication. <Link to="/guide" className="text-signal">Why?</Link></span>}
+        {f.status === 'VERIFIED' && <span className="block mt-2">No finding is VERIFIED because that needs REAL data and replication in an independent dataset or on later data. <Link to="/guide" className="text-signal">Why?</Link></span>}
       </EmptyState>
     )
   );
@@ -60,7 +62,7 @@ export default function Findings() {
   return (
     <div className="pb-16">
       <PageHeader index="02" kicker="VALIDATE" title="Findings registry"
-        standfirst={<>Every interaction the engine has kept, with how far it got: <Term k="interaction">candidates</Term> are found by the statistics, <b>validated</b> findings passed every statistical test, and <Term k="verified">verified</Term> ones also have independent replication and intact provenance.</>} />
+        standfirst={<>Every interaction the engine has kept, with how far it got: <Term k="interaction">candidates</Term> are found by the statistics, <b>validated</b> findings passed every statistical test, and <Term k="verified">verified</Term> ones also replicated in independent data or on later data, with intact provenance.</>} />
 
       {/* counts bar */}
       <section aria-label="Registry counts" className="px-6 md:px-10 mb-8">
@@ -75,9 +77,24 @@ export default function Findings() {
             </li>
           ))}
         </ul>
-        {counts && counts.VERIFIED === 0 && <p className="text-[13px] text-muted mt-2 mb-0">0 verified is expected here: VERIFIED needs REAL data and independent replication. <Link to="/guide" className="text-signal">How a finding earns it</Link>.</p>}
+        {counts && (counts.VERIFIED === 0 || progress.length > 0) && (
+          <div className="mt-3 border border-line px-4 py-3 max-w-4xl">
+            <div className="label mb-1">{counts.VERIFIED === 0 ? 'Why 0 verified, and how close are the others?' : 'How close are the others to VERIFIED?'}</div>
+            <p className="text-[13px] text-muted m-0 mb-2">A finding is VERIFIED only when it passes <b>all eight</b> checks (data hash, ledger chain, ledger inclusion, replay, security, statistics, replication in an independent dataset or on later data, real data). {counts.VERIFIED === 0 ? 'Nothing has passed all eight yet.' : `${counts.VERIFIED} ${counts.VERIFIED === 1 ? 'has' : 'have'}.`} This is how far each other group got: <Link to="/guide" className="text-signal">how a finding earns it</Link>.</p>
+            {progress.length === 0 ? <p className="text-[13px] text-muted m-0">No findings are waiting on a check.</p> : (
+              <ul className="list-none m-0 p-0 grid gap-2">
+                {progress.map((g) => (
+                  <li key={g.missing.map((m) => m.id).join('|')} className="text-[13px] leading-snug">
+                    <span className="num text-text">{g.count} finding{g.count === 1 ? '' : 's'}</span> <span className="text-faint">({g.provenance.join(' + ').toLowerCase()} data)</span> pass <b>{g.passed} of {g.total}</b> checks.{' '}
+                    <span className="text-muted">Missing: {g.missing.map((m) => m.label.replace(/\.$/, '').toLowerCase()).join('; ')}.</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {real.data && real.data.total === 0 && <p className="text-[13px] text-muted mt-1 mb-0">On the <b>real</b> US mortality data (Track C) the engine kept nothing: after removing nationwide flu and weather waves no pair of stressors showed a combined effect that survives the tests. Their separate effects are real and are in the <Link to="/scenario" className="text-signal">Scenario Lab</Link>.</p>}
-        {india.data && india.data.total > 0 && <p className="text-[13px] text-muted mt-1 mb-0"><b>Track D</b> is <b>real</b> Indian electricity-demand data: {india.data.total} pair{india.data.total === 1 ? '' : 's'} of weather conditions survived the tests. The outcome is stress on the power grid, not health, and nothing here is VERIFIED. Filter by track D to see them.</p>}
+        {india.data && india.data.total > 0 && <p className="text-[13px] text-muted mt-1 mb-0"><b>Track D</b> is <b>real</b> Indian electricity-demand data: {india.data.total} pair{india.data.total === 1 ? '' : 's'} of weather conditions survived the tests. The outcome is stress on the power grid, not health. Where a pair was kept again on later data it can reach VERIFIED; the evidence level says which. Filter by track D to see them.</p>}
       </section>
 
       {/* instrument strip */}

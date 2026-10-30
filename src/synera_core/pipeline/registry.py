@@ -42,6 +42,7 @@ class DatasetSpec:
     role: str = ""
     units: str = "raw"       # raw (physical units) | standardised (per-city z-scores): physical-range checks need raw units
     stressors: tuple[str, ...] = ()    # columns the engine tests; empty means the ten standard environmental stressors
+    replicates_on: str = ""            # id of a later-data panel the engine must re-find each pair in (check G7); empty: split-the-places check only
 
     @property
     def stressor_cols(self) -> list[str]:
@@ -57,7 +58,7 @@ class DatasetSpec:
 
     @property
     def runnable(self) -> bool:
-        return self.kind in ("panel", "factorial")
+        return self.kind in ("panel", "factorial") and self.role != "replication data"      # replication panels are inputs of a check, not analyses of their own
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -92,14 +93,21 @@ def get_registry() -> dict[str, DatasetSpec]:
                         description="REAL health outcome: CDC weekly deaths from cerebrovascular disease (stroke), 38 US states with enough data, 2014-2019, "
                                     "same inputs as us_mortality."),
             DatasetSpec("india_grid", "India daily electricity demand x weather (8 large states)", "D", "panel", "REAL",
-                        "data/processed/india_grid_panel.parquet", stressors=INDIA_GRID_STRESSORS,
+                        "data/processed/india_grid_panel.parquet", stressors=INDIA_GRID_STRESSORS, replicates_on="india_grid_late",
                         description="REAL outcome from a non-health system: daily electricity supplied to 8 large Indian states (Grid-India, 2019 to Apr 2024), "
                                     "joined to state-level ERA5 weather (Hunt and Bloomfield, Zenodo 14983362, CC BY 4.0). The outcome is the % above each "
                                     "state's own trend, season and weekday. Measures grid stress, not health."),
             DatasetSpec("india_grid_b", "India daily electricity demand x weather (8 other states)", "D", "panel", "REAL",
-                        "data/processed/india_grid_b_panel.parquet", stressors=INDIA_GRID_STRESSORS,
+                        "data/processed/india_grid_b_panel.parquet", stressors=INDIA_GRID_STRESSORS, replicates_on="india_grid_b_late",
                         description="The same construction on 8 different Indian states, built to check whether what India (8 states) shows repeats elsewhere. "
                                     "Same source, same period, different states: a replication across states, not across data sources."),
+            DatasetSpec("india_grid_late", "India electricity, later data (the states of india_grid)", "D", "panel", "REAL",
+                        "data/processed/india_grid_late_panel.parquet", stressors=INDIA_GRID_STRESSORS, role="replication data",
+                        description="The same 8 states after the analysis window (Apr 2024 to Oct 2026), from a separate compilation of the same Grid-India reports, with weather "
+                                    "averaged over 3 cities per state. Not one of these days was used to find a pair: it is the data a pair must survive to be replicated on later data."),
+            DatasetSpec("india_grid_b_late", "India electricity, later data (the states of india_grid_b)", "D", "panel", "REAL",
+                        "data/processed/india_grid_b_late_panel.parquet", stressors=INDIA_GRID_STRESSORS, role="replication data",
+                        description="The same as india_grid_late for the other 8 states."),
             DatasetSpec("osd-211", "NASA OSDR OSD-211: spleen RNA-seq", "A", "factorial", "REAL",
                         "data/processed/osdr_OSD-211_expr.parquet", "data/processed/osdr_OSD-211_meta.parquet",
                         description="Mouse spleen, chronic low-dose radiation x hindlimb unloading (2x2).", role="discovery"),

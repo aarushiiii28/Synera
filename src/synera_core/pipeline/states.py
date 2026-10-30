@@ -2,7 +2,7 @@
 
     CANDIDATE  survived conditional selection (q < alpha) but lacks full validation
     VALIDATED  + effect >= pre-specified gate, bootstrap CI clears the gate, >= 2 of 3 methods agree
-    VERIFIED   + replicated + provenance REAL + trust (security CLEAN, ledger valid, replay matches)
+    VERIFIED   + replicated (in an independent dataset, or on later data that was not used to find it) + provenance REAL + trust (security CLEAN, ledger valid, replay matches)
     REJECTED   statistically detectable but below the pre-specified minimal effect, or failed replication
     BLOCKED    any integrity failure ("result blocked from verified status")
 
@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-EVIDENCE_LEVELS = ("INDEPENDENT_REPLICATION", "CROSS_TISSUE_SAME_COHORT", "INTERNAL_REPLICATION", "HYPOTHESIS_ONLY")
+EVIDENCE_LEVELS = ("INDEPENDENT_REPLICATION", "LATER_DATA_REPLICATION", "CROSS_TISSUE_SAME_COHORT", "INTERNAL_REPLICATION", "HYPOTHESIS_ONLY")
 STATUSES = ("CANDIDATE", "VALIDATED", "VERIFIED", "BLOCKED", "REJECTED")
 
 

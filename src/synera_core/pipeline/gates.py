@@ -15,6 +15,8 @@ from synera_core.provenance.hashing import sha256_file, sha256_obj
 from synera_core.provenance.ledger import Ledger
 from synera_core.provenance.merkle import verify_proof
 
+# Evidence levels that satisfy G7: a separate dataset, or later data that was never used to find the pair (checked with the engine's unchanged rules).
+REPLICATION_LEVELS = ("INDEPENDENT_REPLICATION", "LATER_DATA_REPLICATION")
 INTEGRITY_GATES = {"G1_DATA_INTEGRITY", "G2_LEDGER_CHAIN", "G3_LEDGER_INCLUSION", "G4_REPRODUCIBILITY", "G5_SECURITY_BLOCKING"}
 
 
@@ -93,16 +95,18 @@ def run_gates(finding: dict[str, Any], ledger: Ledger, dataset_path: Path | None
     # G7 - replication
     rep = finding.get("replication") or {}
     level = finding.get("evidence_level") or rep.get("evidence_level")
-    g7 = bool(rep.get("replicated")) and level == "INDEPENDENT_REPLICATION"
+    g7 = bool(rep.get("replicated")) and level in REPLICATION_LEVELS
     if not rep:
         why = "no replication was attempted"
     elif not rep.get("replicated"):
         why = f"did not replicate ({level})"
-    elif level != "INDEPENDENT_REPLICATION":
+    elif level not in REPLICATION_LEVELS:
         why = f"replicated only as {level}: not independent"
+    elif level == "LATER_DATA_REPLICATION":
+        why = "kept again on later data that was not used to find it (same grid operator, later period)"
     else:
         why = "replicated in an independent dataset"
-    gates.append(_gate("G7_INDEPENDENT_REPLICATION", "Replicated in an independent dataset", g7, why, evidence_level=level))
+    gates.append(_gate("G7_INDEPENDENT_REPLICATION", "Replicated in an independent dataset or on later data", g7, why, evidence_level=level))
 
     # G8 - provenance cap
     real = finding.get("provenance") == "REAL"

@@ -16,7 +16,7 @@ export const GLOSSARY: Record<string, { title: string; text: string }> = {
   hash: { title: 'SHA-256 hash', text: 'A fingerprint of a file. Change one bit and the fingerprint changes completely.' },
   merkle: { title: 'Merkle proof', text: 'A short proof that a specific hash is included in a ledger block, without revealing the others.' },
   verified: { title: 'VERIFIED', text: 'Statistically validated with verified computational provenance. It never means "biologically proven".' },
-  replication: { title: 'Replication', text: 'Finding the same effect again in different data. Independent replication is the strongest evidence.' },
+  replication: { title: 'Replication', text: 'Finding the same effect again in different data. Independent replication is the strongest evidence; keeping a pair again on later data that was not used to find it also counts.' },
   crosstissue: { title: 'Cross-tissue, same cohort', text: 'The same animals supplied both tissues, so agreement is a consistency check, not independent replication.' },
   power: { title: 'Statistical power', text: 'The chance that a real effect of a given size is detected. Low power means real effects can be missed.' },
   mde: { title: 'Minimum detectable effect', text: 'The smallest effect this experiment could reliably detect.' },

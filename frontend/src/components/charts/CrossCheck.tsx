@@ -11,7 +11,7 @@ export function CrossCheck({ here, other, hereName, otherName, labels }: { here:
     <div>
       <p className="text-[15px] text-muted max-w-3xl mt-0 mb-4 leading-relaxed">
         These two panels use <b>different states</b> from the same record, the same period and the same rules. A pair that is kept in both has repeated on states the first analysis never saw.
-        It is still the same data source, so it is a check across states, not across independent datasets.
+        It is still the same data source, so it is a check across states, not across independent datasets. Each finding&rsquo;s separate check on later data (Apr 2024 to Oct 2026) is in its evidence dossier.
       </p>
       <p className="text-[15px] m-0 mb-4 max-w-3xl leading-relaxed" role="status">
         {c.rows.length === 0 ? 'No pair was kept in either panel.'
@@ -36,7 +36,7 @@ export function CrossCheck({ here, other, hereName, otherName, labels }: { here:
       )}
       <div className="border-l-2 border-solar pl-4 mt-5 text-[13.5px] text-muted leading-relaxed max-w-3xl">
         The outcome is stress on the power grid, not health. Sunlight, cloud cover and humidity move together, so a pair that includes them may describe a weather pattern (such as humid, cloudy monsoon days) more than a single mechanism.
-        During development a second version of the outcome, with the same-day average of the panel&rsquo;s states removed, picked different pairs: these results depend on that choice. Nothing here is VERIFIED.
+        During development a second version of the outcome, with the same-day average of the panel&rsquo;s states removed, picked different pairs: these results depend on that choice.
       </div>
     </div>
   );

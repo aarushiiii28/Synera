@@ -1,7 +1,7 @@
 """Interpretable composite confidence score. It is NOT a probability.
 
     stat         mean of [1 - q/alpha (clipped), min(|effect|/1, 1), 1 if the CI excludes 0 else 0]
-    replication  1.0 independent replication, 0.5 same-cohort / internal replication, 0 otherwise
+    replication  1.0 independent replication, 0.75 replication on later data, 0.5 same-cohort / internal replication, 0 otherwise
     robustness   share of methods that agree (parametric, GBM-SHAP, NID)
     trust        1 if security CLEAN-or-advisory, ledger chain valid and replay matches, else 0
 
@@ -38,6 +38,8 @@ def compute_confidence(
     if replicated:
         if evidence_level == "INDEPENDENT_REPLICATION":
             rep_score = 1.0
+        elif evidence_level == "LATER_DATA_REPLICATION":
+            rep_score = 0.75
         elif evidence_level in ("INTERNAL_REPLICATION", "CROSS_TISSUE_SAME_COHORT"):
             rep_score = 0.5
 

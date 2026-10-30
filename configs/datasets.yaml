@@ -102,6 +102,28 @@ datasets:
     outcome: "% above the state's own expected electricity supplied (trend, season, weekday); a non-health outcome (grid stress)"
     status: "INGESTED"
 
+  - id: "india_grid_late"
+    track: "D"
+    title: "India electricity, the 8 states of india_grid, AFTER the analysis window (Apr 2024 to Oct 2026): the data a pair must survive to be replicated on later data"
+    source: "Robbie Andrew's daily compilation of Grid-India reports (https://robbieandrew.github.io/india/) and Open-Meteo/ERA5 weather averaged over 3 cities per state. Built by scripts/build_india_grid_late.py"
+    provenance: "REAL"
+    files: ["data/processed/india_grid_late_panel.parquet", "data/processed/india_grid_late_panel_qc.json"]
+    design: "continuous"
+    stressors: ["tmax", "rh", "wind", "solar", "cloud"]
+    outcome: "same construction as india_grid; an input of the india_grid replication check, not an analysis of its own"
+    status: "INGESTED"
+
+  - id: "india_grid_b_late"
+    track: "D"
+    title: "India electricity, the 8 states of india_grid_b, after the analysis window"
+    source: "as india_grid_late"
+    provenance: "REAL"
+    files: ["data/processed/india_grid_b_late_panel.parquet", "data/processed/india_grid_b_late_panel_qc.json"]
+    design: "continuous"
+    stressors: ["tmax", "rh", "wind", "solar", "cloud"]
+    outcome: "same construction as india_grid"
+    status: "INGESTED"
+
   - id: "india_grid_b"
     track: "D"
     title: "India daily electricity supplied x state weather, 8 other states (a check across states)"

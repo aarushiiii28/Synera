@@ -24,7 +24,9 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   (await see(/Assign statuses|FINALIZE/i, 30000)) ? ok('"Run the engine" replays the recorded nine steps') : fail('engine steps');
 
   await p.goto(base + '/findings', { waitUntil: 'networkidle' });
-  (await p.locator('a[href^="/findings/"]').count()) >= 6 ? ok('findings registry lists the 3 recorded findings') : fail('findings');
+  (await p.locator('a[href^="/findings/"]').count()) >= 6 ? ok('findings registry lists the recorded findings') : fail('findings');
+  (await see(/pass 7 of 8 checks/i)) ? ok('the registry explains how close the unverified findings are') : fail('verified progress');
+  await p.goto(base + '/findings?provenance=SIMULATED', { waitUntil: 'networkidle' });
   await p.locator('a[href^="/findings/"]').first().click();
   await p.getByRole('button', { name: /re-verify/i }).click();
   (await see(/SIMULATED provenance cap/i)) ? ok('re-verify replays the recorded SIMULATED cap') : fail('re-verify');

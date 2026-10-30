@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Finding, MatrixCell, RunEvent, Surface } from '../lib/api';
 import {
   activeFilterCount, caveatKinds, crossCheck, diamondRadius, explainedAway, filtersToParams, findingSentence, forestSpan, funnelStages, nextSort, overallProgress,
-  pageCount, parseFilters, peakGap, peakGapIndex, pInflationOrders, runBanner, screenAudit, stepViews, toApiQuery, transect, verdictState,
+  pageCount, parseFilters, peakGap, peakGapIndex, pInflationOrders, runBanner, screenAudit, stepViews, toApiQuery, transect, verdictState, verifiedProgress,
 } from '../components/charts/discoveryLogic';
 
 const ev = (step: number, status: RunEvent['status'], data: Record<string, unknown> = {}, name = 'X'): RunEvent => ({
@@ -63,6 +63,22 @@ describe('standard screen audit', () => {
   });
   it('reports zero flagged when nothing is flagged', () => {
     expect(screenAudit([cell({})])).toMatchObject({ flagged: 0, survived: 0 });
+  });
+});
+
+describe('how close unverified findings are', () => {
+  const gate = (id: string, passed: boolean) => ({ id, label: id, passed, reason: '', integrity: false });
+  const f = (status: Finding['status'], failed: string[], provenance: Finding['provenance'] = 'REAL') =>
+    ({ status, provenance, gates: ['G1', 'G2', 'G7', 'G8'].map((g) => gate(g, !failed.includes(g))) }) as unknown as Pick<Finding, 'status' | 'gates' | 'provenance'>;
+  it('groups findings by the checks they miss, closest first, and ignores verified, blocked and rejected', () => {
+    const g = verifiedProgress([f('VALIDATED', ['G7']), f('VALIDATED', ['G7']), f('CANDIDATE', ['G7', 'G8'], 'SIMULATED'), f('VERIFIED', []), f('BLOCKED', ['G1']), f('REJECTED', ['G7'])]);
+    expect(g.map((x) => [x.count, x.passed, x.total])).toEqual([[2, 3, 4], [1, 2, 4]]);
+    expect(g[0].missing.map((m) => m.id)).toEqual(['G7']);
+    expect(g[1].provenance).toEqual(['SIMULATED']);
+  });
+  it('is empty when every gate passes or none are recorded', () => {
+    expect(verifiedProgress([f('VALIDATED', [])])).toHaveLength(1);
+    expect(verifiedProgress([{ status: 'VALIDATED', provenance: 'REAL', gates: [] } as unknown as Pick<Finding, 'status' | 'gates' | 'provenance'>])).toEqual([]);
   });
 });
 
@@ -164,7 +180,7 @@ describe('dossier text', () => {
     const s = findingSentence(f, { heat_index: { label: 'heat index', unit: '', group: '', about: '' }, pm25: { label: 'PM2.5', unit: '', group: '', about: '' } });
     expect(s).toContain('In simulated data, heat index and PM2.5 together raise the outcome more than the sum');
     expect(s).toContain('0.32 outcome SDs (95% CI 0.25 to 0.55)');
-    expect(s).toContain('capped at VALIDATED because it has no independent replication and it is built on simulated');
+    expect(s).toContain('capped at VALIDATED because it has no independent replication or replication on later data and it is built on simulated');
   });
   it('blocked verdict switches to the alert style', () => {
     expect(verdictState('BLOCKED')).toEqual({ blocked: true, headline: 'RESULT BLOCKED FROM VERIFIED STATUS' });

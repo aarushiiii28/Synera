@@ -65,4 +65,4 @@ if __name__ == "__main__":
     ap.add_argument("--core", action="store_true", help="only the core runs (NASA, benchmark, all-cause deaths): faster, for deployed images")
     ap.add_argument("--only", nargs="+", metavar="DATASET", help="run only these dataset ids (for example: --only india_grid india_grid_b)")
     a = ap.parse_args()
-    seed(a.quick, a.force, tuple(a.only) if a.only else CORE if a.core else ALL_RUNNABLE)
+    seed(a.quick, a.force, tuple(a.only) if a.only else CORE if a.core else ALL_RUNNABLE)    # later-data panels are inputs of the india_* runs, not runs of their own

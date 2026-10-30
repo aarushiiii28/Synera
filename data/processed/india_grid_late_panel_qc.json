@@ -1,0 +1,29 @@
+{
+  "title": "India daily electricity supplied x weather, the 8 states of india_grid, AFTER the discovery window (2024-04-29 to 2026-10-15)",
+  "provenance": "REAL",
+  "role": "later-data replication of india_grid",
+  "rows": 7200,
+  "states": [
+    "Delhi",
+    "Gujarat",
+    "Karnataka",
+    "Maharashtra",
+    "Punjab",
+    "Rajasthan",
+    "Tamil Nadu",
+    "Uttar Pradesh"
+  ],
+  "date_start": "2024-04-29",
+  "date_end": "2026-10-15",
+  "states_dropped_for_too_few_days": {},
+  "sources": {
+    "demand": "Robbie Andrew's daily compilation of Grid-India (POSOCO) reports, EnergyMet per state, https://robbieandrew.github.io/india/",
+    "weather": "Open-Meteo historical archive (ERA5), CC BY 4.0, daily values averaged over 3 large cities per state (Delhi: 1)"
+  },
+  "rule": "A pair found in the discovery panel counts as replicated on later data when the engine, with its unchanged pre-set rules, keeps the same pair in this panel after conditional selection.",
+  "limitations": [
+    "Same grid operator and the same reporting system as the discovery data: what is new is the period, not the source.",
+    "Weather is averaged over 3 cities per state, not the state-wide ERA5 average used for discovery.",
+    "The outcome is electricity supplied (grid stress), not health."
+  ]
+}

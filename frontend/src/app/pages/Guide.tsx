@@ -51,7 +51,7 @@ export default function Guide() {
           <div className="grid gap-4 md:grid-cols-3">
             <Panel variant="inset" title="Candidate"><StatusChip status="CANDIDATE" large /><p className="text-sm text-muted mt-3 mb-0">Survived false-discovery control <em>and</em> conditional selection (it is not just a look-alike of another pair).</p></Panel>
             <Panel variant="inset" title="Validated"><StatusChip status="VALIDATED" large /><p className="text-sm text-muted mt-3 mb-0">Effect above the pre-specified minimum, a confidence interval that clears it, and at least one independent method agrees.</p></Panel>
-            <Panel variant="inset" title="Verified"><StatusChip status="VERIFIED" large /><p className="text-sm text-muted mt-3 mb-0">Validated, replicated in independent data, built from REAL data, dataset hash and ledger chain intact, and the run replays to the same result.</p></Panel>
+            <Panel variant="inset" title="Verified"><StatusChip status="VERIFIED" large /><p className="text-sm text-muted mt-3 mb-0">Validated, replicated in independent data or kept again on later data that was not used to find it, built from REAL data, dataset hash and ledger chain intact, and the run replays to the same result.</p></Panel>
           </div>
           <div className="grid gap-4 md:grid-cols-2 mt-4">
             <Panel variant="alert" title="Blocked"><StatusChip status="BLOCKED" large /><p className="text-sm text-muted mt-3 mb-0">An integrity check failed: data hash, ledger chain, replay or a physical-range violation. “Result blocked from verified status.”</p></Panel>

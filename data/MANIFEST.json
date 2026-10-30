@@ -63,6 +63,24 @@
       },
       "sha256": "638456eaf9bb9d9c59f91bff436939e2ea0df1c08e3aa5ff4ceac907448f70d6"
     },
+    "data/processed/india_grid_b_late_panel.parquet": {
+      "block_index": 128,
+      "kind": "dataset",
+      "meta": {
+        "description": "India electricity, later data for india_grid_b (Track D replication)",
+        "provenance": "REAL"
+      },
+      "sha256": "12e8c51219ac3873d945be8cec21e3b321bfe8fc2f36b421e45fa33988916292"
+    },
+    "data/processed/india_grid_b_late_panel_qc.json": {
+      "block_index": 129,
+      "kind": "dataset",
+      "meta": {
+        "description": "India electricity, later data for india_grid_b (Track D replication)",
+        "provenance": "REAL"
+      },
+      "sha256": "88a4fd7a54fa8e72a582a60643047fbe1accc14c31344340725c9455a8436c63"
+    },
     "data/processed/india_grid_b_panel.parquet": {
       "block_index": 106,
       "kind": "dataset",
@@ -80,6 +98,24 @@
         "provenance": "REAL"
       },
       "sha256": "2dca8500ccdde641827fa31d106610b914c96c40cd2797937b63d5ea1ed563b5"
+    },
+    "data/processed/india_grid_late_panel.parquet": {
+      "block_index": 126,
+      "kind": "dataset",
+      "meta": {
+        "description": "India electricity, later data for india_grid (Track D replication)",
+        "provenance": "REAL"
+      },
+      "sha256": "f5d37d02b663944778a737a12c5434b17fa6a0cf1ab1f82bbdad511f99e2c3c0"
+    },
+    "data/processed/india_grid_late_panel_qc.json": {
+      "block_index": 127,
+      "kind": "dataset",
+      "meta": {
+        "description": "India electricity, later data for india_grid (Track D replication)",
+        "provenance": "REAL"
+      },
+      "sha256": "28b1c9e30d25be372fe1c546a7539502b187f448a938b74f1a6faaeaa9420f07"
     },
     "data/processed/india_grid_panel.parquet": {
       "block_index": 104,
@@ -279,6 +315,6 @@
       "sha256": "378618e4a4b3ea731aee40eb079cd159ec5897c73ad3894b512f9f6b0be46cda"
     }
   },
-  "generated_at": "2026-10-26T13:58:02.698768+00:00",
+  "generated_at": "2026-10-27T10:23:28.827559+00:00",
   "version": "1.0.0"
 }

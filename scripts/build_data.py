@@ -50,13 +50,13 @@ def main() -> int:
         print("   panel missing: run  python scripts/build_health_panel.py")
 
     print("1c. India daily electricity supplied x weather (real non-health outcome; built by scripts/build_india_grid_panel.py)")
-    for stem in ("india_grid", "india_grid_b"):
+    for stem in ("india_grid", "india_grid_b", "india_grid_late", "india_grid_b_late"):
         for p in (root / "data" / "processed" / f"{stem}_panel.parquet", root / "data" / "processed" / f"{stem}_panel_qc.json"):
             if p.exists():
                 register_file(ledger, p, "dataset", {"description": "India daily electricity supplied x weather (Track D)", "provenance": "REAL"},
                               manifest_path=manifest)
             else:
-                print(f"   {p.name} missing: run  python scripts/build_india_grid_panel.py")
+                print(f"   {p.name} missing: run  python scripts/build_india_grid_panel.py  and  python scripts/build_india_grid_late.py")
 
     print("2. NASA OSDR studies (real files in data/raw/manual/osdr/<ID>/)")
     cfg = yaml.safe_load((root / "configs" / "datasets.yaml").read_text())

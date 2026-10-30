@@ -16,6 +16,7 @@ export function ProvenanceTag({ provenance, className = '' }: { provenance: Prov
 
 const EV: Record<EvidenceLevel, { label: string; tone: string; tip: string }> = {
   INDEPENDENT_REPLICATION: { label: 'INDEPENDENT REPLICATION', tone: 'text-biosphere', tip: 'Replicated in a separate dataset.' },
+  LATER_DATA_REPLICATION: { label: 'REPLICATED ON LATER DATA', tone: 'text-biosphere', tip: 'Kept again on later data that was not used to find it (same grid operator, different period).' },
   CROSS_TISSUE_SAME_COHORT: { label: 'CROSS-TISSUE · SAME COHORT', tone: 'text-solar', tip: 'Same animals, two tissues: a consistency check, not independent replication.' },
   INTERNAL_REPLICATION: { label: 'INTERNAL REPLICATION', tone: 'text-solar', tip: 'Replicated inside the same dataset (e.g. held-out cities).' },
   HYPOTHESIS_ONLY: { label: 'HYPOTHESIS ONLY', tone: 'text-alert', tip: 'No replication. A hypothesis, not a result.' },

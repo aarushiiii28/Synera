@@ -6,7 +6,7 @@ import type { ScenarioModel } from './scenario';
 export type Provenance = 'REAL' | 'SIMULATED';
 export type Status = 'CANDIDATE' | 'VALIDATED' | 'VERIFIED' | 'BLOCKED' | 'REJECTED';
 export type InteractionType = 'SYNERGISTIC' | 'ANTAGONISTIC' | 'NONLINEAR';
-export type EvidenceLevel = 'INDEPENDENT_REPLICATION' | 'CROSS_TISSUE_SAME_COHORT' | 'INTERNAL_REPLICATION' | 'HYPOTHESIS_ONLY';
+export type EvidenceLevel = 'INDEPENDENT_REPLICATION' | 'LATER_DATA_REPLICATION' | 'CROSS_TISSUE_SAME_COHORT' | 'INTERNAL_REPLICATION' | 'HYPOTHESIS_ONLY';
 
 export class ApiError extends Error {
   status: number;

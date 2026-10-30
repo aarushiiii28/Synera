@@ -86,6 +86,8 @@ def recompute_digest(dataset_id: str, params: dict) -> str:
     if spec.kind == "panel":
         res = run_full_stack(load_panel(spec), "outcome", spec.stressor_cols, alpha=params["alpha"], effect_gate=params["effect_gate"],
                              n_boot=params["n_boot"], n_ci=params["n_ci"], seed=params["seed"], topk=params["topk"])
+        if spec.replicates_on:
+            return sha256_obj([panel_digest(res), later_digest(later_replication(spec, params))])
         return panel_digest(res)
     expr, meta = TA.load_study(spec.abs_path.name.split("_")[1])
     return factorial_digest(TA.interaction_table(expr, meta, params["alpha"]))
@@ -110,6 +112,10 @@ def panel_digest(res: dict) -> str:
     return sha256_obj(rows)
 
 
+def later_digest(later: dict) -> str:
+    return sha256_obj([[a, b, v["kept"], _sig(v["p"]), _sig(v["q"])] for (a, b), v in sorted(later.items())])
+
+
 def factorial_digest(res_d: pd.DataFrame) -> str:
     return sha256_obj([[str(i), _sig(float(p)), _sig(float(b))] for i, p, b in zip(res_d.index, res_d["p_AB"], res_d["b_AB"])])
 
@@ -117,6 +123,17 @@ def factorial_digest(res_d: pd.DataFrame) -> str:
 # --------------------------------------------------------------------------------------------------
 # Panel (Track B) pieces
 # --------------------------------------------------------------------------------------------------
+def later_replication(spec: DatasetSpec, params: dict) -> dict[tuple[str, str], dict]:
+    """Run the engine, with the same pre-set rules and no second opinions, on the later-data panel of ``spec``.
+
+    A pair counts as replicated on later data when the engine keeps it after conditional selection there. Pairs are keyed (a, b) in sorted order."""
+    rep_spec = get_spec(spec.replicates_on)
+    res = run_full_stack(load_panel(rep_spec), "outcome", rep_spec.stressor_cols, alpha=params["alpha"], effect_gate=params["effect_gate"],
+                         n_boot=params["n_boot"], n_ci=params["n_ci"], seed=params["seed"], topk=params["topk"], second_opinion=False)
+    return {tuple(sorted((r["a"], r["b"]))): {"kept": bool(r["s3_conditional"]), "p": float(r["p_boot"]), "q": float(r["q_boot"]),
+                                              "type": r.get("type"), "effect_size": r.get("effect_size")} for r in res["pairs"]}
+
+
 def _holdout_replication(df: pd.DataFrame, accepted: list[dict], params: dict, stressors: list[str] | None = None) -> dict[tuple[str, str], dict]:
     """Internal replication by city hold-out: fit each accepted pair in two disjoint halves of the cities."""
     cities = sorted(df["city"].unique())
@@ -147,14 +164,19 @@ def _panel_findings(res: dict, df: pd.DataFrame, spec: DatasetSpec, dataset_hash
     findings = []
     for r, qc in zip(accepted, q_cond):
         h = hold.get((r["a"], r["b"]), {"halves": {}, "replicated": False})
-        rep = {"evidence_level": "INTERNAL_REPLICATION", "n_shared": 1, "replicated": bool(h["replicated"]),
+        level = h.get("level", "INTERNAL_REPLICATION")
+        rep = {"evidence_level": level, "n_shared": 1, "replicated": bool(h["replicated"]),
                "replication_rate": 1.0 if h["replicated"] else 0.0, "halves": h["halves"],
                "detail": "Re-fitted in two disjoint halves of the cities; replicated when both halves are significant with the same direction."}
+        if level == "LATER_DATA_REPLICATION":
+            rep["later"] = h["later"]
+            rep["detail"] = ("The engine, with the same pre-set rules, was run on the same states after the analysis window (" + h["later"]["panel"] +
+                             "); replicated when it keeps this pair there after conditional selection. Same grid operator, later period.")
         fid = sha256_obj({"dataset_hash": dataset_hash, "pair": [r["a"], r["b"]], "config": params})[:12]
         eff = {"b_AB": r["b_AB_std"], "ci_low": r["ci_low"], "ci_high": r["ci_high"], "cohens_d": r["effect_size"],
                "effect_size": r["effect_size"], "eff_ci_low": r["eff_ci_low"], "eff_ci_high": r["eff_ci_high"]}
         f = {
-            "id": fid, "track": spec.track, "provenance": spec.provenance, "evidence_level": "INTERNAL_REPLICATION",
+            "id": fid, "track": spec.track, "provenance": spec.provenance, "evidence_level": level,
             "dataset_ids": [spec.id], "dataset_hashes": {spec.id: dataset_hash}, "stressors": [r["a"], r["b"]],
             "feature": None, "type": r["type"], "effect": eff,
             "stats": {"p": float(r["conditional_p"] or r["p_boot"]), "q": float(qc), "n": int(res["n_rows"]), "df": float(res["n_rows"]),
@@ -303,8 +325,24 @@ def execute_run(dataset_id: str, params: dict | None = None, emit: Emit | None =
             if is_panel:
                 acc = [p for p in state["res"]["pairs"] if p["s3_conditional"]]
                 hold = _holdout_replication(state["df"], acc, params, spec.stressor_cols) if acc else {}
+                if spec.replicates_on:
+                    rep_spec = get_spec(spec.replicates_on)
+                    chk = guard.check_dataset(rep_spec.abs_path)
+                    if not chk.ok:
+                        raise RunBlocked(f"integrity failure in the later-data panel: {chk.detail}")
+                    later = later_replication(spec, params)
+                    state["later"] = later
+                    for p in acc:
+                        v = later.get(tuple(sorted((p["a"], p["b"]))), {"kept": False, "p": float("nan"), "q": float("nan")})
+                        hold.setdefault((p["a"], p["b"]), {"halves": {}})
+                        hold[(p["a"], p["b"])].update({"level": "LATER_DATA_REPLICATION", "replicated": bool(v["kept"]),
+                                                       "later": {"panel": rep_spec.id, "hash": chk.actual_hash, "kept": bool(v["kept"]), "p": v["p"], "q": v["q"],
+                                                                 "type": v.get("type"), "effect_size": v.get("effect_size")}})
                 state["hold"] = hold
                 n_rep = sum(v["replicated"] for v in hold.values())
+                if spec.replicates_on:
+                    return (f"later data ({spec.replicates_on}): {n_rep}/{len(acc)} selected pairs are kept again - LATER_DATA_REPLICATION (same grid operator, later period)",
+                            {"evidence_level": "LATER_DATA_REPLICATION", "pairs": len(acc), "replicated": int(n_rep)})
                 return (f"city hold-out (two disjoint city halves): {n_rep}/{len(acc)} selected pairs replicate - INTERNAL_REPLICATION only",
                         {"evidence_level": "INTERNAL_REPLICATION", "pairs": len(acc), "replicated": int(n_rep)})
             cons = TA.cross_tissue_consistency(state["res_d"], state["res_r"], state["meta"], state["meta_r"], params["alpha"])
@@ -317,7 +355,12 @@ def execute_run(dataset_id: str, params: dict | None = None, emit: Emit | None =
 
         # 6 ---- PROVENANCE -----------------------------------------------------------------------
         def s6():
-            digest = panel_digest(state["res"]) if is_panel else factorial_digest(state["res_d"])
+            if is_panel:
+                digest = panel_digest(state["res"])
+                if spec.replicates_on:
+                    digest = sha256_obj([digest, later_digest(state.get("later", {}))])
+            else:
+                digest = factorial_digest(state["res_d"])
             state["digest"] = digest
             manifest = build_run_manifest(config={"dataset_id": dataset_id, **params}, dataset_hashes=state["file_hashes"],
                                           model_hashes={}, seed=params["seed"], repo_root=find_repo_root())

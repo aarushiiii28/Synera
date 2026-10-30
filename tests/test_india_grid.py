@@ -15,6 +15,26 @@ def test_india_specs_carry_their_own_stressors():
     assert get_spec("us_mortality").stressor_cols == list(STRESSORS)          # every other dataset keeps the ten standard stressors
 
 
+def test_later_data_counts_for_g7_but_split_the_places_does_not():
+    from synera_core.pipeline.gates import REPLICATION_LEVELS
+    from synera_core.validation.confidence import compute_confidence
+    assert "LATER_DATA_REPLICATION" in REPLICATION_LEVELS and "INDEPENDENT_REPLICATION" in REPLICATION_LEVELS
+    assert "INTERNAL_REPLICATION" not in REPLICATION_LEVELS and "CROSS_TISSUE_SAME_COHORT" not in REPLICATION_LEVELS
+    score = lambda lvl: compute_confidence(0.001, 0.05, 0.5, True, lvl, True, 1.0, trust=1)["components"]["replication"]   # noqa: E731
+    assert score("INDEPENDENT_REPLICATION") > score("LATER_DATA_REPLICATION") > score("INTERNAL_REPLICATION") > 0
+
+
+def test_later_panels_are_registered_inputs_not_analyses_and_start_after_the_discovery_window():
+    reg = get_registry()
+    for did, late in (("india_grid", "india_grid_late"), ("india_grid_b", "india_grid_b_late")):
+        assert reg[did].replicates_on == late
+        assert reg[late].role == "replication data" and not reg[late].runnable          # a check's input, not a run of its own
+        if reg[late].abs_path.exists() and reg[did].abs_path.exists():
+            first_late = pd.read_parquet(reg[late].abs_path)["date"].min()
+            last_found = pd.read_parquet(reg[did].abs_path)["date"].max()
+            assert first_late > last_found                                               # not one later-data day was used to find a pair
+
+
 def test_the_two_panels_use_different_states():
     reg = get_registry()
     if not (reg["india_grid"].abs_path.exists() and reg["india_grid_b"].abs_path.exists()):

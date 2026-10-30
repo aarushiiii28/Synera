@@ -111,6 +111,24 @@ export function screenAudit(cells: MatrixCell[], topk = 6, alpha = 0.05): Screen
   return { total: cells.length, plain, trees, neural, flagged: rows.length, survived: rows.filter((r) => r.survived).length, rows };
 }
 
+// ---------- how close the unverified findings are ----------
+export interface GateGroup { count: number; passed: number; total: number; missing: { id: string; label: string; reason: string }[]; provenance: string[] }
+
+/** Findings that are not VERIFIED, grouped by which of the eight checks they miss. Reads the recorded gates; changes nothing about how a finding is verified. */
+export function verifiedProgress(items: Pick<Finding, 'status' | 'gates' | 'provenance'>[]): GateGroup[] {
+  const groups = new Map<string, GateGroup>();
+  for (const f of items) {
+    if (f.status === 'VERIFIED' || f.status === 'BLOCKED' || f.status === 'REJECTED' || !f.gates?.length) continue;
+    const missing = f.gates.filter((g) => !g.passed).map((g) => ({ id: g.id, label: g.label, reason: g.reason }));
+    const key = missing.map((m) => m.id).sort().join('|');
+    const g = groups.get(key) ?? { count: 0, passed: f.gates.length - missing.length, total: f.gates.length, missing, provenance: [] };
+    g.count++;
+    if (!g.provenance.includes(f.provenance)) g.provenance.push(f.provenance);
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => b.passed - a.passed || b.count - a.count);
+}
+
 // ---------- the same question on two disjoint sets of places ----------
 export interface CrossRow { a: string; b: string; here: boolean; other: boolean; effectHere: number | null; effectOther: number | null }
 
@@ -245,12 +263,13 @@ const TYPE_PHRASE: Record<InteractionType, string> = {
 };
 export const GATE_PHRASE: Record<string, string> = {
   G6_STATISTICAL_VALIDATION: 'it did not pass statistical validation',
-  G7_INDEPENDENT_REPLICATION: 'it has no independent replication',
+  G7_INDEPENDENT_REPLICATION: 'it has no independent replication or replication on later data',
   G8_REAL_PROVENANCE: 'it is built on simulated rather than real data',
 };
 const EVIDENCE_PHRASE: Record<string, string> = {
   INTERNAL_REPLICATION: 'It was re-found in two disjoint halves of the cities, which is internal replication only, not independent replication.',
   INDEPENDENT_REPLICATION: 'It was re-found in an independent dataset.',
+  LATER_DATA_REPLICATION: 'It was kept again on later data that was not used to find it (the dates differ, and the source is the same grid operator).',
   CROSS_TISSUE_SAME_COHORT: 'It agrees across tissues from the same animals, a consistency check rather than independent replication.',
   HYPOTHESIS_ONLY: 'It has no replication, so it is a hypothesis only.',
 };

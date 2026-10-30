@@ -20,7 +20,7 @@ const ok = (m) => console.log('ok  ', m);
   await page.getByRole('button', { name: /run the engine/i }).click();
   await page.getByText(/FINALIZE|Assign statuses/i).first().waitFor({ timeout: 240000 }).then(() => ok('engine run reached FINALIZE'), () => fail('engine run did not finish'));
 
-  await page.goto(base + '/findings', { waitUntil: 'networkidle' });
+  await page.goto(base + '/findings?provenance=SIMULATED', { waitUntil: 'networkidle' });     // the re-verify step below shows the SIMULATED cap, so open a simulated finding
   const row = page.locator('a[href^="/findings/"]').first();
   await row.waitFor({ timeout: 15000 }).then(() => ok('registry lists findings'), () => fail('no findings listed'));
   await row.click();

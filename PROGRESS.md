@@ -60,7 +60,7 @@ What was measured, and what was learned:
 * Null calibration λ: naive 4.11, HAC 14.32, block bootstrap 1.38 (7.6% of p-values < 0.05 at nominal 5%).
 * Track A (REAL): 24,688 genes tested, best q = 0.45, **0 findings**; null λ = 0.96; 43% power at 1.5 log2, 80% power only at ~4 log2; 20 of 21 animals shared between tissues.
 * Security: hash 100% of 600 attack trials; statistical detectors missed all subtle in-range edits and label flips; clean false alarms on held-out data 2-5% per statistical detector (10% any warning); MCD and autoencoder never fired on any attack.
-* Findings today: 11 VALIDATED (3 simulated and capped; 8 REAL from Track D, India electricity), 3 CANDIDATE (Track D), 0 VERIFIED, 0 BLOCKED.
+* Findings today: 14 findings: 2 VERIFIED (Track D, India electricity: temperature x humidity and humidity x cloud cover, kept again on later data), 9 VALIDATED (3 simulated and capped), 3 CANDIDATE, 0 BLOCKED.
 
 ## Part 11: a real Indian system outcome (Track D)
 
@@ -71,6 +71,8 @@ Real health data had shown no interaction, so the engine had never been seen to 
 | Data | daily electricity supplied to 16 Indian states (Grid-India) joined to the states' ERA5 weather, 2019 to Apr 2024; two panels of 8 states each | `scripts/build_india_grid_panel.py`, Zenodo 10.5281/zenodo.14983362 (CC BY 4.0) |
 | Engine | the unchanged nine-step pipeline, ledger, replay and gates, now with per-dataset stressor columns (`DatasetSpec.stressors`) | `india_grid`, `india_grid_b` in the registry |
 | Discovery Lab | "What a standard screen would have reported" (all datasets) and "Does it repeat in other states?" (Track D) | `ScreenAudit.tsx`, `CrossCheck.tsx` |
+
+Later-data check (rule fixed before running it): the same engine and rules on the same states after the analysis window (29 Apr 2024 to 15 Oct 2026, a separate compilation of the same Grid-India reports, weather averaged over 3 cities per state; `scripts/build_india_grid_late.py`). A pair that the engine keeps again there gets the evidence level `LATER_DATA_REPLICATION`, which satisfies G7; two pairs of `india_grid` did and are VERIFIED (all eight gates). Evidence level and gate text say plainly that it is later data from the same operator, not a separate source.
 
 What was found: first panel 7 pairs survive selection, second panel 4; maximum temperature x humidity, maximum temperature x cloud cover and humidity x solar radiation are kept in both. What it does not show: health effects (the outcome is grid stress), independent replication (one data source), or robustness to how nationwide weather is handled (a second outcome version, run during development, picked different pairs). Data issues handled: 55 repeated dates in the source were dropped; about 6% of days are absent and left absent. The whole source panel (16 states, 60,000 rows) is too slow for this engine on a laptop, hence two panels of 8.
 
