@@ -15,7 +15,7 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   p.on('requestfailed', (r) => errs.push('REQFAIL ' + r.url()));
   const see = (re, t = 20000) => p.getByText(re).first().waitFor({ state: 'visible', timeout: t }).then(() => true, () => false);
 
-  await p.goto(base + '/', { waitUntil: 'networkidle' });
+  await p.goto(base + '/observatory', { waitUntil: 'networkidle' });
   (await see(/RECORDED DEMO/)) ? ok('top bar says RECORDED DEMO') : fail('top bar');
   (await see(/nothing is computed live/i)) ? ok('the notice says results are recorded, not computed live') : fail('notice');
 

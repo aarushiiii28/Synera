@@ -32,6 +32,8 @@ flowchart LR
 
 **Live Stress Lab.** A physical Arduino Uno (DHT11 temperature and humidity, MQ gas sensor) read over USB and streamed into the app at `/live-stress-lab`, with a bounded live history, scenario builder, an exploratory heat-index interaction view, a comparison with real historical data and a provenance record for every value. Readings carry `REAL_SENSOR` or `SIMULATED_TEST` provenance; a hardware session can be sealed in the ledger. Setup, wiring, API and honesty rules: [docs/LIVE_STRESS_LAB.md](docs/LIVE_STRESS_LAB.md).
 
+**India Live Intelligence (home page, `/`).** An interactive map of India with 52 cities. Click one and SYNERA fetches its live readings (Open-Meteo weather and CAMS air quality; CPCB, OpenAQ and NASA FIRMS when keys are set), validates them, runs them through the existing engine (the scenario model against the city's own seasonal normal, and the verified Indian grid findings), and returns ranked actions (who, what, why, how urgent, which data and thresholds) with an explanation of what the engine can and cannot support. Official thresholds (CPCB, IMD, WHO, NWS) and engine output are kept apart and labelled. Setup, sources, what is and is not integrated, and limits: [docs/INDIA_LIVE.md](docs/INDIA_LIVE.md). The earlier Observatory is at `/observatory`.
+
 ## Quickstart
 
 ```bash

@@ -4,7 +4,8 @@ import { Logo, Wordmark } from './Logo';
 import { IconBenchmark, IconBiology, IconDiscovery, IconFindings, IconGuide, IconLive, IconObservatory, IconRisk, IconScenario, IconTrust } from './NavIcons';
 
 export const NAV = [
-  { to: '/', icon: <IconObservatory />, title: 'Observatory', sub: 'The big picture', step: '' },
+  { to: '/', icon: <IconRisk />, title: 'India Live', sub: 'Live map and actions', step: '' },
+  { to: '/observatory', icon: <IconObservatory />, title: 'Observatory', sub: 'The big picture', step: '' },
   { to: '/scenario', icon: <IconScenario />, title: 'Scenario Lab', sub: 'What if they combine?', step: '' },
   { to: '/live-stress-lab', icon: <IconLive />, title: 'Live Stress Lab', sub: 'Real sensors, real air', step: '' },
   { to: '/discovery', icon: <IconDiscovery />, title: 'Discovery Lab', sub: 'Find interactions', step: '01' },

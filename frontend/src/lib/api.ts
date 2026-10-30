@@ -1,6 +1,7 @@
 import { isStatic, snapshotReq } from './snapshot';
 import type { ScenarioModel } from './scenario';
 import type { LiveReading, LiveStatus } from './live';
+import type { IndiaCity, IndiaOverview } from './india';
 
 // Typed client for docs/API_CONTRACT.md. Every function maps 1:1 to a backend endpoint under /api/v1.
 
@@ -258,6 +259,10 @@ export const api = {
   liveDisconnect: () => post<LiveStatus>('/live/disconnect'),
   liveAnalyze: () => post<LiveAnalysis>('/live/analyze'),
   liveSeal: () => post<NonNullable<LiveStatus['last_session']>>('/live/seal'),
+
+  // India live intelligence: live readings for Indian cities through the SYNERA engine
+  indiaOverview: () => get<IndiaOverview>('/india/overview'),
+  indiaCity: (id: string) => get<IndiaCity>(`/india/city/${encodeURIComponent(id)}`),
 
   riskRegions: () => get<{ id: string; lat: number; lon: number }[]>('/risk/regions'),
   risk: (region: string) => get<Risk>('/risk/assessment' + qs({ region })),
