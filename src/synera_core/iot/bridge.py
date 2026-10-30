@@ -271,6 +271,13 @@ class SerialBridge:
                 return
 
     # ---------------------------------------------------------------- evidence
+    def session_file(self) -> Path | None:
+        """The CSV of the session being recorded, or of the last hardware session; ``None`` when there is none."""
+        if self._recorder and self._recorder.rows:
+            return self._recorder.path
+        s = self._last_session
+        return Path(s["path"]) if s else None
+
     def seal_last_session(self, ledger: Ledger) -> dict[str, Any]:
         """Hash the last real session file and record it in the signed ledger, so any later edit of the file is detectable."""
         if self._recorder and self._recorder.rows:        # a live session is still being written: close it first so the hash is final

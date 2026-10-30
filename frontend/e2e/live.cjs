@@ -43,6 +43,15 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
     (await p.locator('svg[aria-label^="Temperature over time"]').count()) ? ok('HARDWARE: live temperature chart is drawn') : fail('temperature chart');
     /smoke alert/i.test(txt) ? ok('HARDWARE: the smoke alert is shown') : fail('smoke alert');
     /simulated|fake|PM2\.5/i.test(txt.replace(/Not ppm[^.]*\./i, '')) ? fail('the live page mentions simulated, fake or PM2.5') : ok('HARDWARE: no simulated tags, no PM2.5 claim');
+    // a minute of readings is far too little for the interaction engine: it must say so instead of inventing a result
+    const btn = p.getByRole('button', { name: /analyse my data/i });
+    (await btn.isDisabled()) && /warming up/i.test(await p.locator('main').innerText()) ? ok('HARDWARE: the analysis waits while the gas sensor warms up and says so') : console.log('     (the sensor was already warm)');
+    for (let i = 0; i < 100 && (await btn.isDisabled()); i++) await p.waitForTimeout(2000);        // the gas sensor's warm-up readings are excluded: about two minutes
+    await btn.click();
+    (await see(/Not enough to say yet|Interaction detected|No interaction detected/, 60000)) ? ok('HARDWARE: the interaction engine ran on the live session and answered') : fail('analysis answer');
+    const a = await p.locator('main').innerText();
+    /Not enough to say yet/.test(a) && /readings so far|only varied|barely moves/i.test(a) ? ok('HARDWARE: with this little data it refuses to claim a result and says why') : console.log('     (the engine produced a result on this session)');
+    /EXPLORATORY/.test(a) ? ok('HARDWARE: the analysis is labelled exploratory') : fail('exploratory label');
     await p.screenshot({ path: process.env.SHOT || 'live_hardware.png' });
     await p.getByRole('button', { name: /^disconnect$/i }).click();
     (await see(/DISCONNECTED/)) ? ok('HARDWARE: disconnect works and releases the port') : fail('hardware disconnect');

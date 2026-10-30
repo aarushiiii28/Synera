@@ -9,6 +9,7 @@ import { ConnectionPanel, StateDot } from '../../components/live/ConnectionPanel
 import { SensorCard } from '../../components/live/SensorCard';
 import { LiveChart } from '../../components/live/LiveChart';
 import { Insights } from '../../components/live/Insights';
+import { InteractionCheck } from '../../components/live/InteractionCheck';
 
 const WINDOWS: { label: string; s: number | null }[] = [{ label: '1 min', s: 60 }, { label: '5 min', s: 300 }, { label: '15 min', s: 900 }, { label: 'All', s: null }];
 
@@ -57,11 +58,17 @@ export default function LiveStressLab() {
         {last ? <Insights readings={readings} /> : <EmptyState title="Waiting for readings">Connect the device above. The heat comfort, smoke alert and engine estimate appear as soon as it sends data.</EmptyState>}
       </Section>
 
-      <Section n="03" title="Live readings">
+      <Section n="03" title="Interaction check" lead="The same engine that searches real health and electricity data, pointed at what your device collects: do temperature and humidity act together on the gas sensor's reading?">
+        <Panel variant="ruled" title="Does the gas reading depend on temperature and humidity together?" index="B" right={<span className="num text-[10px] tracking-[0.14em] text-solar">EXPLORATORY · ONE DEVICE</span>}>
+          <InteractionCheck readings={readings} unavailable={unavailable || !last} />
+        </Panel>
+      </Section>
+
+      <Section n="04" title="Live readings">
         <div className="grid sm:grid-cols-3 gap-4">{SENSORS.map((s) => <SensorCard key={s.key} k={s.key} readings={shown} />)}</div>
       </Section>
 
-      <Section n="04" title="Live charts" lead="Everything that actually arrived. Hover for exact values."
+      <Section n="05" title="Live charts" lead="Everything that actually arrived. Hover for exact values."
         right={<div className="flex flex-wrap items-center gap-2">
           <div role="group" aria-label="Time window" className="flex">{WINDOWS.map((w) => <button key={w.label} type="button" aria-pressed={win === w.s} onClick={() => setWin(w.s)} className={`num text-[10px] tracking-[0.1em] px-2.5 py-1 border ${win === w.s ? 'border-signal text-signal bg-signal/10' : 'border-line text-muted hover:text-text'}`}>{w.label}</button>)}</div>
           <button type="button" onClick={togglePause} disabled={unavailable || (!readings.length && !paused)} className={`num text-[10px] tracking-[0.12em] px-3 py-1 border disabled:opacity-40 ${paused ? 'border-solar text-solar' : 'border-line text-muted hover:text-text'}`}>{paused ? 'RESUME' : 'PAUSE'}</button></div>}>

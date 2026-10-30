@@ -197,7 +197,16 @@ export interface LiveHistory {
   dataset: { id: string; name: string; provenance: string; source: string; date_start: string | null; date_end: string | null; sha256: string | null; city: string; cities: string[] };
   temperature: LiveDist; humidity: LiveDist; caveats: string[];
 }
-export const liveStreamUrl = (after = 0) => `${API_ORIGIN}/api/v1/live/stream${after ? `?after=${after}` : ''}`;
+export interface LiveAnalysis {
+  kind: 'EXPLORATORY'; question: string; status: 'INSUFFICIENT_DATA' | 'INTERACTION_DETECTED' | 'NO_INTERACTION_DETECTED'; limits: string[];
+  data: { rows_in_file: number; rows_used: number; rows_left_out: number; hours?: number; temperature_range?: [number, number]; humidity_range?: [number, number]; gas_sd_after_detrending?: number };
+  reasons?: string[]; advice?: string;
+  result?: { p_calibrated: number; q: number; p_naive: number; type: 'SYNERGISTIC' | 'ANTAGONISTIC' | 'NONLINEAR' | null; effect_size_sd: number | null; effect_ci: [number | null, number | null]; alpha: number; effect_gate_sd: number; block_length: number; n: number };
+  main_effects?: { per_1sd_temperature: number; per_1sd_humidity: number; temperature_sd: number; humidity_sd: number };
+  grid?: { cells: { n: number; mean: number | null }[][]; temperature_edges: number[]; humidity_edges: number[]; unit: string };
+  outcome_sd?: number;
+}
+export const liveStreamUrl =(after = 0) => `${API_ORIGIN}/api/v1/live/stream${after ? `?after=${after}` : ''}`;
 
 // ---------- endpoints ----------
 export const api = {
@@ -247,6 +256,7 @@ export const api = {
   liveReadings: (after = 0, limit = 1500) => get<{ status: LiveStatus; items: LiveReading[]; latest_seq: number }>('/live/readings' + qs({ after, limit })),
   liveConnect: (port: string, baud: number) => post<LiveStatus>('/live/connect', { port, baud }),
   liveDisconnect: () => post<LiveStatus>('/live/disconnect'),
+  liveAnalyze: () => post<LiveAnalysis>('/live/analyze'),
   liveSeal: () => post<NonNullable<LiveStatus['last_session']>>('/live/seal'),
 
   riskRegions: () => get<{ id: string; lat: number; lon: number }[]>('/risk/regions'),

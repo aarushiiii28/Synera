@@ -98,6 +98,24 @@ def test_sealing_records_the_session_file_in_the_ledger(client, bridge, tmp_ledg
     assert tmp_ledger.verify()["valid"]
 
 
+def test_analysis_needs_a_hardware_session_and_refuses_thin_data(client, bridge, tmp_path):
+    assert client.post("/api/v1/live/analyze").status_code == 404                     # nothing collected yet
+    client.post("/api/v1/live/connect", json={"port": "COM_FAKE", "baud": 9600})
+    assert wait(lambda: client.get("/api/v1/live/status").json()["packets_ok"] == 3)
+    r = client.post("/api/v1/live/analyze").json()                                      # three readings are far too few
+    assert r["status"] == "INSUFFICIENT_DATA" and r["kind"] == "EXPLORATORY" and "result" not in r and r["reasons"]
+
+
+def test_analysis_runs_the_engine_on_a_long_session_and_calls_it_exploratory(client, bridge, tmp_path):
+    from tests.test_iot_analysis import session
+    path = tmp_path / "session_test.csv"
+    session(n=1200, interaction=7.0).to_csv(path, index=False)                          # data generated in the test with a planted interaction
+    bridge._last_session = {"file": path.name, "rows": 1200, "path": str(path), "sealed": False}
+    r = client.post("/api/v1/live/analyze").json()
+    assert r["kind"] == "EXPLORATORY" and r["status"] == "INTERACTION_DETECTED" and r["result"]["q"] < 0.05
+    assert any("not a validated" in x for x in r["limits"]) and len(r["grid"]["cells"]) == 3
+
+
 def test_history_compares_with_real_outdoor_data_and_states_the_caveats(client, bridge):
     from synera_core.pipeline.registry import get_spec
     if not get_spec("env_panel").abs_path.exists():

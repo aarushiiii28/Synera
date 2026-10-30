@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from synera_core.benchmark.generator import load_env_panel
+from synera_core.iot.analysis import analyse, load_session
 from synera_core.iot.bridge import BAUDS, SerialBridge, list_ports
 from synera_core.iot.readings import HEADER, SPEC
 from synera_core.pipeline.registry import get_spec, summarize
@@ -110,6 +111,16 @@ def seal(bridge: SerialBridge = Depends(get_bridge), ledger: Ledger = Depends(ge
         return bridge.seal_last_session(ledger)
     except LookupError as exc:
         raise HTTPException(404, str(exc))
+
+
+@router.post("/analyze", summary="Run the interaction engine on the hardware session so far: does the gas reading depend on temperature and humidity together?")
+def analyze(quick: bool = True, bridge: SerialBridge = Depends(get_bridge)):
+    path = bridge.session_file()
+    if path is None or not path.exists():
+        raise HTTPException(404, "There is no hardware session to analyse. Connect the device and let it collect readings first.")
+    if bridge.status()["test_mode"]:
+        raise HTTPException(409, "The test generator is running; only readings from the real device are analysed.")
+    return analyse(load_session(path), quick=quick)
 
 
 @router.get("/history", summary="Where a reading sits among the real outdoor daily observations already in SYNERA (not like-for-like: see the caveats)")
