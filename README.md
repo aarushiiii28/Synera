@@ -7,6 +7,31 @@ SYNERA uses AI to **discover** interaction hypotheses, classical statistics to *
 
 > *AI generates hypotheses. Science validates them. The ledger does not prove the science; it makes the computational provenance tamper-evident.*
 
+## In simple words
+
+**What is it?** A website that shows India on a map. Click a city and you see its weather and air quality right now, how risky it is, and a short list of what people should do about it.
+
+**What makes it different?**
+* It tells you where each number came from: a real station, a weather model, or a forecast.
+* It tells you how sure it is. When it is not sure, it says so, and it never makes up a number.
+* Every result is saved in a locked record (a "ledger"), so nobody can quietly change it later.
+* It looks at heat, humidity and pollution *together*, not one at a time.
+
+**What does it use?** Free live data from Open-Meteo (weather and air quality). If you add free keys, it also uses India's pollution monitors (CPCB, OpenAQ) and NASA fire data.
+
+**Try it in 3 steps** (Windows):
+1. Open a terminal in this folder and run `.\dev.cmd`.
+2. Open http://localhost:5173 in your browser. This is the India map.
+3. Click any city. Read the "What should we do now?" list.
+
+**What to know before you trust it** (we are open about these):
+* Air quality on the map is a model estimate, not a street-level reading.
+* The health model was learned from US data, so for India it is only a rough guide. It is marked low confidence.
+* The free public website (Vercel) shows a saved snapshot, not live data, and it says so on the page. For live data, run the app on your own computer.
+* The state borders come from an open dataset, not the official Survey of India map.
+
+More detail: [docs/INDIA_LIVE.md](docs/INDIA_LIVE.md) (the map) and [docs/LIVE_STRESS_LAB.md](docs/LIVE_STRESS_LAB.md) (the Arduino sensor).
+
 ## What is in the box
 
 | Layer | What it does | Where |
@@ -132,7 +157,7 @@ Or `docker compose up --build` → web on `http://localhost:8080` (the ledger an
 
 ## Quality gates (last run)
 
-88 Python tests (core, pipeline, tamper, scenario model, India grid, API) · 60 frontend tests, including a check that the TypeScript Scenario predictor matches the Python one to 9 decimals · `ruff` clean · real type-check (`tsc -p tsconfig.app.json`) and production build clean · three Playwright end-to-end suites pass: `npm run e2e` (Observatory → engine run → finding → re-verify → tamper → ledger still valid), `npm run e2e:scenario` (presets, sliders, season effect, outcome and state switching, phone layout) and `npm run e2e:static` (the whole recorded demo with the API switched off) · `make reproduce` reports REPRODUCED for all six analyses and 25/25 registered files match the ledger · 9 notebooks executed headless earlier in the project · `npm audit --omit=dev`: 0 vulnerabilities · pinned Python environment in `requirements.lock`. Not tested here: the Docker images and the hosted Render and Vercel deployments themselves (their build steps were reproduced locally from a clean copy).
+189 Python tests (core, pipeline, tamper, scenario model, India grid, India live, API) · 94 frontend tests, including a check that the TypeScript Scenario predictor matches the Python one to 9 decimals · `ruff` clean · real type-check (`tsc -p tsconfig.app.json`) and production build clean · three Playwright end-to-end suites pass: `npm run e2e` (Observatory → engine run → finding → re-verify → tamper → ledger still valid), `npm run e2e:scenario` (presets, sliders, season effect, outcome and state switching, phone layout) and `npm run e2e:static` (the whole recorded demo with the API switched off) · `make reproduce` reports REPRODUCED for all six analyses and 25/25 registered files match the ledger · 9 notebooks executed headless earlier in the project · `npm audit --omit=dev`: 0 vulnerabilities · pinned Python environment in `requirements.lock`. Not tested here: the Docker images and the hosted Render and Vercel deployments themselves (their build steps were reproduced locally from a clean copy).
 
 ## Repository map
 
