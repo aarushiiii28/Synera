@@ -102,6 +102,15 @@ A SIMULATED finding therefore always shows `G8` failed with “SIMULATED provena
 | GET `/security/false-alarm-rates` | measured clean-data false-alarm rate and attack detection rate per detector |
 | GET `/security/reports` · `/reports/{id}` | per-run scan results |
 
+## India live intelligence
+
+Live data, no simulation. A provider that fails yields `available: false` with a reason (or a `stale` last-good copy), never an invented value. Details: [INDIA_LIVE.md](INDIA_LIVE.md).
+
+| GET `/india/cities` | `[{id, name, state, lat, lon, terrain}]` |
+|---|---|
+| GET `/india/overview` | `{available, reason?, generated_at, layers[{id, label, field, unit, legend, note}], cities[{id, name, state, lat, lon, temperature_c, humidity_pct, wind_kmh, wind_dir_deg, rain_24h_mm, rain_next_mm, pm25, pm10, aqi, aqi_category, aqi_level, heat_index_c, heat_category, heat_level, imd_heat, risk, risk_tier, risk_driver, completeness}], national{median_aqi, aqi_categories, hotspots_air[], hottest[], alerts[]}, sources[]}` |
+| GET `/india/city/{id}` | `{available, reason?, city, as_of, metrics{name: {value, unit, label, kind, source, time}}, derived{aqi, heat_stress_c, heat_index, imd_heat, rain, uv, composite}, series{time[], now_index, ...}, daily[], fires, quality{issues, missing, completeness}, sources[], engine{scenario, grid}, recommendations[{rank, action, what_is_happening, why, who[], urgency, window, confidence{level, score, why}, basis, evidence[]}], explain{drivers, conditions, engine, basis_count, not_done}}`; 404 for an unknown city id. `kind` is `OBSERVATION`, `MODEL_ANALYSIS`, `FORECAST` or `DERIVED`; `urgency` is `INFORMATIONAL`, `ADVISORY`, `HIGH_PRIORITY` or `CRITICAL`. |
+
 ## Risk
 
 | GET `/risk/regions` | `[{id, lat, lon}]` |

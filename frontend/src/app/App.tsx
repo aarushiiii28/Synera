@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './Layout';
@@ -6,6 +6,7 @@ import { Layout } from './Layout';
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: false } } });
 
 // Route-level code splitting: three.js only loads with the pages that use the globe.
+const IndiaLive = lazy(() => import('./pages/IndiaLive'));
 const Observatory = lazy(() => import('./pages/Observatory'));
 const Discovery = lazy(() => import('./pages/Discovery'));
 const Findings = lazy(() => import('./pages/Findings'));
@@ -16,6 +17,7 @@ const Benchmark = lazy(() => import('./pages/Benchmark'));
 const RiskBrief = lazy(() => import('./pages/RiskBrief'));
 const Guide = lazy(() => import('./pages/Guide'));
 const Scenario = lazy(() => import('./pages/Scenario'));
+const LiveStressLab = lazy(() => import('./pages/LiveStressLab'));
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
 
 export function App() {
@@ -23,8 +25,10 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          {/* The home page is the India command centre: it has its own full-screen shell instead of the platform rail. */}
+          <Route index element={<Suspense fallback={<div className="min-h-screen bg-[#0B1014]" />}><IndiaLive /></Suspense>} />
           <Route element={<Layout />}>
-            <Route index element={<Observatory />} />
+            <Route path="observatory" element={<Observatory />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="findings" element={<Findings />} />
             <Route path="findings/:id" element={<Dossier />} />
@@ -33,6 +37,7 @@ export function App() {
             <Route path="benchmark" element={<Benchmark />} />
             <Route path="risk" element={<RiskBrief />} />
             <Route path="scenario" element={<Scenario />} />
+            <Route path="live-stress-lab" element={<LiveStressLab />} />
             <Route path="guide" element={<Guide />} />
             {import.meta.env.DEV && <Route path="_design" element={<DesignSystem />} />}
           </Route>

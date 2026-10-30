@@ -2,7 +2,7 @@
 export interface TourStop { route: string; step: string; title: string; text: string; look: string }
 
 export const TOUR: TourStop[] = [
-  { route: '/', step: 'THE PROBLEM', title: 'The environment doesn’t change one variable at a time',
+  { route: '/observatory', step: 'THE PROBLEM', title: 'The environment doesn’t change one variable at a time',
     text: 'Heat, air pollution, drought, weather and radiation act together. Most analysis studies them one by one and misses what happens when they interact.',
     look: 'The strip below shows live counts from the engine, including zero where nothing has earned a higher status.' },
   { route: '/discovery', step: 'STEP 1 · DISCOVER', title: 'The AI engine hunts for hidden interactions',

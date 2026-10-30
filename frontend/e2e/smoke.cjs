@@ -12,7 +12,7 @@ const ok = (m) => console.log('ok  ', m);
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/502|Failed to load resource/.test(m.text()) && errors.push(m.text()));
 
-  await page.goto(base + '/', { waitUntil: 'networkidle' });
+  await page.goto(base + '/observatory', { waitUntil: 'networkidle' });
   await page.getByText('API LIVE').waitFor({ timeout: 15000 }).then(() => ok('top bar reports API LIVE'), () => fail('API LIVE not shown'));
   await page.getByText(/^verified$/i).first().waitFor({ timeout: 15000 }).then(() => ok('pipeline strip shows the VERIFIED count'), () => fail('no verified readout'));
 

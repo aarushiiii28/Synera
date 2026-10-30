@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from backend.app.api.v1 import benchmark, datasets, findings, interactions, risk, runs, scenario, security, space_biology, system
+from backend.app.api.v1 import benchmark, datasets, findings, india, interactions, live, risk, runs, scenario, security, space_biology, system
 
 api_router = APIRouter()
-for module in (system, datasets, runs, findings, interactions, space_biology, benchmark, security, risk, scenario):
+for module in (system, datasets, runs, findings, interactions, space_biology, benchmark, security, risk, scenario, live, india):
     api_router.include_router(module.router)

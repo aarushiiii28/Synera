@@ -50,7 +50,7 @@ export function Graticule({ rotate = [-25, -18, 0] as [number, number, number], 
 
 /** Fixed full-viewport atmosphere behind all pages. */
 export function Backdrop() {
-  const home = useLocation().pathname === '/'; // the Observatory shows the Earth itself, so no graticule behind it
+  const home = useLocation().pathname === '/observatory'; // the Observatory shows the Earth itself, so no graticule behind it
   return (
     <div className="fixed inset-0 -z-0 pointer-events-none overflow-hidden" aria-hidden>
       <Stars />

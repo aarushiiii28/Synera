@@ -45,3 +45,6 @@ data/synthetic/
 frontend/dist/
 *.tsbuildinfo
 scratch_vite.*
+
+# Live sensor sessions (physical readings; sealed copies are fingerprinted in the ledger)
+data/live/

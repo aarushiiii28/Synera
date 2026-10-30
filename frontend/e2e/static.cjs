@@ -15,7 +15,7 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   p.on('requestfailed', (r) => errs.push('REQFAIL ' + r.url()));
   const see = (re, t = 20000) => p.getByText(re).first().waitFor({ state: 'visible', timeout: t }).then(() => true, () => false);
 
-  await p.goto(base + '/', { waitUntil: 'networkidle' });
+  await p.goto(base + '/observatory', { waitUntil: 'networkidle' });
   (await see(/RECORDED DEMO/)) ? ok('top bar says RECORDED DEMO') : fail('top bar');
   (await see(/nothing is computed live/i)) ? ok('the notice says results are recorded, not computed live') : fail('notice');
 
@@ -53,6 +53,10 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   (await see(/Does it repeat in other states/i)) ? ok('India grid: the cross-state check is shown') : fail('india cross-check');
   (await see(/pairs? kept in both panels/i)) ? ok('India grid: pairs kept in both panels are counted') : fail('india counts');
   (await see(/What a standard screen would have reported/i)) ? ok('the standard-screen audit is shown') : fail('audit');
+
+  await p.goto(base + '/live-stress-lab', { waitUntil: 'networkidle' });
+  (await see(/Run SYNERA locally to use the device/)) ? ok('Live Stress Lab: the recorded demo says it has no hardware') : fail('live static notice');
+  (await see(/Waiting for readings/)) ? ok('Live Stress Lab: no prediction without real readings') : fail('live static insights');
 
   errs.length ? fail('errors: ' + [...new Set(errs)].slice(0, 3).join(' | ')) : ok('no console errors and no failed requests');
   await browser.close();

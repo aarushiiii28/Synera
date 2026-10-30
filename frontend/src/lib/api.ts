@@ -1,5 +1,7 @@
 import { isStatic, snapshotReq } from './snapshot';
 import type { ScenarioModel } from './scenario';
+import type { LiveReading, LiveStatus } from './live';
+import type { IndiaCity, IndiaOverview } from './india';
 
 // Typed client for docs/API_CONTRACT.md. Every function maps 1:1 to a backend endpoint under /api/v1.
 
@@ -186,6 +188,27 @@ export interface Risk {
 export interface ScenarioOutcome { id: string; label: string; available: boolean; dataset_id?: string; rows?: number; states?: number; calibration_slope?: number; calibration_slope_ci?: [number, number]; r2_leave_states_out?: number }
 export interface Experiment { run_id: string; dataset_id: string; status: string; config_hash: string; result_hash: string; ledger_block: number | null; runtime_s: number | null; created_at: number; replay_matches: boolean | null; summary: Record<string, number>; params: Record<string, unknown> }
 
+export interface LivePorts { available: boolean; ports: { device: string; description: string; manufacturer: string; hwid: string }[]; note: string | null; bauds: number[] }
+export interface LiveSpec {
+  format: string; baud_default: number; interval_s: number; notes: string[]; wiring: Record<string, string>;
+  sensors: Record<string, { unit: string; sensor: string; spec_range: [number, number]; accuracy: string; resolution: number }>;
+}
+export interface LiveDist { variable: string; unit: string; n_days: number; min: number; max: number; quantiles: Record<string, number>; percentile_of_reading: number | null; reading: number | null }
+export interface LiveHistory {
+  dataset: { id: string; name: string; provenance: string; source: string; date_start: string | null; date_end: string | null; sha256: string | null; city: string; cities: string[] };
+  temperature: LiveDist; humidity: LiveDist; caveats: string[];
+}
+export interface LiveAnalysis {
+  kind: 'EXPLORATORY'; question: string; status: 'INSUFFICIENT_DATA' | 'INTERACTION_DETECTED' | 'NO_INTERACTION_DETECTED'; limits: string[];
+  data: { rows_in_file: number; rows_used: number; rows_left_out: number; hours?: number; temperature_range?: [number, number]; humidity_range?: [number, number]; gas_sd_after_detrending?: number };
+  reasons?: string[]; advice?: string;
+  result?: { p_calibrated: number; q: number; p_naive: number; type: 'SYNERGISTIC' | 'ANTAGONISTIC' | 'NONLINEAR' | null; effect_size_sd: number | null; effect_ci: [number | null, number | null]; alpha: number; effect_gate_sd: number; block_length: number; n: number };
+  main_effects?: { per_1sd_temperature: number; per_1sd_humidity: number; temperature_sd: number; humidity_sd: number };
+  grid?: { cells: { n: number; mean: number | null }[][]; temperature_edges: number[]; humidity_edges: number[]; unit: string };
+  outcome_sd?: number;
+}
+export const liveStreamUrl =(after = 0) => `${API_ORIGIN}/api/v1/live/stream${after ? `?after=${after}` : ''}`;
+
 // ---------- endpoints ----------
 export const api = {
   health: () => get<Health>('/health'),
@@ -227,6 +250,19 @@ export const api = {
 
   scenarioOutcomes: () => get<ScenarioOutcome[]>('/scenario/outcomes'),
   scenarioModel: (outcome = 'all') => get<ScenarioModel>('/scenario/model' + qs({ outcome })),
+
+  // Live Stress Lab: a physical Arduino read over a serial port by the API process on this computer
+  livePorts: () => get<LivePorts>('/live/ports'),
+  liveStatus: () => get<LiveStatus>('/live/status'),
+  liveReadings: (after = 0, limit = 1500) => get<{ status: LiveStatus; items: LiveReading[]; latest_seq: number }>('/live/readings' + qs({ after, limit })),
+  liveConnect: (port: string, baud: number) => post<LiveStatus>('/live/connect', { port, baud }),
+  liveDisconnect: () => post<LiveStatus>('/live/disconnect'),
+  liveAnalyze: () => post<LiveAnalysis>('/live/analyze'),
+  liveSeal: () => post<NonNullable<LiveStatus['last_session']>>('/live/seal'),
+
+  // India live intelligence: live readings for Indian cities through the SYNERA engine
+  indiaOverview: () => get<IndiaOverview>('/india/overview'),
+  indiaCity: (id: string) => get<IndiaCity>(`/india/city/${encodeURIComponent(id)}`),
 
   riskRegions: () => get<{ id: string; lat: number; lon: number }[]>('/risk/regions'),
   risk: (region: string) => get<Risk>('/risk/assessment' + qs({ region })),
