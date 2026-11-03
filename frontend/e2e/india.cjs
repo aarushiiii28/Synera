@@ -21,6 +21,18 @@ const fail = (m) => { bad++; console.log('FAIL', m); };
   (await p.locator('svg[aria-label^="Map of India"] [role=button]').count()) >= 40 ? ok('city markers are present and focusable') : fail('markers');
   (await see(/^LIVE$|STALE DATA/)) ? ok('the status chip reports the data state') : fail('status chip');
   (await see(/Select a city on the map/)) ? ok('the city panel invites a selection') : fail('placeholder');
+  (await p.getByText('Platform ▾').count()) === 0 ? ok('no Platform menu in the header') : fail('platform menu still present');
+  const rail = p.getByRole('navigation', { name: 'Primary' }).first();
+  const railLinks = await rail.getByRole('link').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  ['India Live', 'Observatory', 'Scenario Lab', 'Live Stress Lab', 'Discovery Lab', 'Findings', 'Trust Center', 'Report Card', 'How it works'].every((n) => railLinks.includes(n)) ? ok('the left rail lists every tab, India Live included') : fail('rail tabs: ' + railLinks.join(','));
+  const pick = p.getByLabel('Choose a city');
+  await pick.click();
+  const all = await p.getByRole('listbox').getByRole('option').count();
+  all >= 50 ? ok('the dropdown lists every supported city (' + all + ')') : fail('dropdown size ' + all);
+  await pick.fill('amr');
+  const some = await p.getByRole('listbox').getByRole('option').allInnerTexts();
+  some.length >= 1 && some.every((t) => /amr/i.test(t)) && /Amritsar/.test(some.join()) ? ok('typing "amr" narrows the dropdown to matching cities') : fail('filter: ' + some.join('|'));
+  await p.keyboard.press('Escape');
   const layerBtn = (name) => p.getByRole('group', { name: 'Map layer' }).getByRole('button', { name, exact: true });
   for (const name of ['Air quality', 'Temperature', 'Humidity', 'Rainfall', 'Wind', 'Composite risk']) {
     await layerBtn(name).click();

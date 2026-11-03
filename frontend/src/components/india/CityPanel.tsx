@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CityPicker } from './CityPicker';
 import { color, compass, fmt, KIND_LABEL, URGENCY_STYLE, WINDOW_LABEL, type Explain, type IndiaCity, type Kind, type Metric, type Recommendation } from '../../lib/india';
 
 const TABS = ['Actions', 'Conditions', 'Evidence', 'Sources'] as const;
@@ -139,15 +140,15 @@ function Sources({ c }: { c: IndiaCity }) {
   );
 }
 
-export function CityPanel({ id, data, loading, error, onRetry, onPick }: { id: string | null; data?: IndiaCity; loading: boolean; error: string | null; onRetry: () => void; onPick: (id: string) => void }) {
+export function CityPanel({ id, cities, data, loading, error, onRetry, onPick }: { id: string | null; cities: { id: string; name: string; state: string }[]; data?: IndiaCity; loading: boolean; error: string | null; onRetry: () => void; onPick: (id: string) => void }) {
   const [tab, setTab] = useState<Tab>('Actions');
   const [all, setAll] = useState(false);
   if (!id) return (
     <div className="p-6 grid gap-4 content-start">
       <div className="lbl">City intelligence</div>
-      <h2 className="display m-0 text-[22px] font-light leading-tight">Select a city on the map</h2>
+      <h2 className="display m-0 text-[22px] font-light leading-tight">Select a city on the map, or choose one below</h2>
       <p className="m-0 text-[13.5px] leading-relaxed text-[var(--in-muted)]">SYNERA fetches that city's live readings, checks them, runs them through the engine and tells you what to do now, with the evidence for each action.</p>
-      <div className="flex flex-wrap gap-2">{[['amritsar', 'Amritsar'], ['delhi', 'Delhi'], ['mumbai', 'Mumbai'], ['bengaluru', 'Bengaluru'], ['kolkata', 'Kolkata']].map(([k, n]) => <button key={k} type="button" onClick={() => onPick(k)} className="px-3 py-1.5 text-[12.5px] border border-[var(--in-line2)] hover:bg-white/[0.06]">{n}</button>)}</div>
+      <CityPicker id="in-panel-pick" label="Choose a city" cities={cities} selectedId={id} onPick={onPick} />
     </div>);
   if (loading) return <div className="p-6 grid gap-3" aria-busy="true" aria-label="Loading city intelligence"><div className="lbl">Fetching live readings and running the engine…</div>{[60, 120, 160, 160].map((h, i) => <div key={i} className="india-skel" style={{ height: h }} />)}</div>;
   if (error || !data) return <div className="p-6" role="alert"><div className="lbl text-[var(--in-crit)]">Could not load</div><p className="text-[13px] text-[var(--in-muted)]">{error ?? 'No response.'}</p><button type="button" onClick={onRetry} className="px-3 py-1.5 text-[12.5px] border border-[var(--in-line2)] hover:bg-white/[0.06]">Try again</button></div>;

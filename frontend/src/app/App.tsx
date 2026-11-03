@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './Layout';
@@ -25,9 +25,9 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* The home page is the India command centre: it has its own full-screen shell instead of the platform rail. */}
-          <Route index element={<Suspense fallback={<div className="min-h-screen bg-[#0B1014]" />}><IndiaLive /></Suspense>} />
           <Route element={<Layout />}>
+            {/* The home page is the India command centre; it shares the left rail with every other page. */}
+            <Route index element={<IndiaLive />} />
             <Route path="observatory" element={<Observatory />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="findings" element={<Findings />} />
